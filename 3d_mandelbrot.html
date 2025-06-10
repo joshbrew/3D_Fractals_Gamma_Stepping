@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<!-- Joshua Brewster, freeware, based on https://codepen.io/setz/pen/gbpXoqw by setz -->
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>3D Fractal Point Cloud (Solid Tiles)</title>
+  <style>
+    body { margin:0; overflow:hidden; background:#000; }
+    #ui {
+      position:absolute; top:10px; left:10px; z-index:10;
+      background:rgba(0,0,0,0.7); padding:8px; border-radius:6px;
+      color:#fff; font-family:monospace;
+    }
+    #ui label { display:block; margin:4px 0; }
+    #loading {
+      position:absolute; top:50%; left:50%;
+      transform:translate(-50%,-50%);
+      color:#0f0; font-family:monospace;
+      background:rgba(0,0,0,0.8); padding:10px; border-radius:4px;
+      z-index:20;
+    }
+  </style>
+  <script type="importmap">
+    {"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.152.2/build/three.module.js"}}
+  </script>
+</head>
+<body>
+  <div id="ui">
+    <label>Color Scheme:
+      <select id="colorScheme">
+        <option value="0">Violet→Cyan→White</option>
+        <option value="1">Fire</option>
+        <option value="2">Ice</option>
+      </select>
+    </label>
+    <label>Alpha Mode:
+      <select id="alphaMode">
+        <option value="0">Solid</option>
+        <option value="1" selected>Fade In</option>
+        <option value="2">Inverse Fade</option>
+      </select>
+    </label>
+    <label>Threshold Basis:
+      <select id="thresholdBasis">
+        <option value="0">Escape Ratio</option>
+        <option value="1">Layer Index</option>
+      </select>
+    </label>
+    <label>Low α Threshold:
+      <input id="lowThresh" type="range" min="0" max="1" step="0.01" value="0.2">
+      <span id="lowVal">0.20</span>
+    </label>
+    <label>High α Threshold:
+      <input id="highThresh" type="range" min="0" max="1" step="0.01" value="1">
+      <span id="highVal">1.00</span>
+    </label>
+  </div>
+  <div id="loading">Loading layers: 0 / 0</div>
+
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'https://cdn.jsdelivr.net/npm/three@0.152.2/examples/jsm/controls/OrbitControls.js';
+
+// CONFIG
+const gridSize  = 800,
+      zMin      = 0.5,
+      zMax      = 2.0,
+      dz        = 0.02,
+      numLayers = Math.round((zMax - zMin)/dz)+1,
+      zoom      = 4,
+      escapeR   = 4,
+      maxIter   = 100;
+
+// UI refs
+const ui = {
+  scheme:  document.getElementById('colorScheme'),
+  alpha:   document.getElementById('alphaMode'),
+  basis:   document.getElementById('thresholdBasis'),
+  low:     document.getElementById('lowThresh'),
+  high:    document.getElementById('highThresh'),
+  lowVal:  document.getElementById('lowVal'),
+  highVal: document.getElementById('highVal'),
+  loading: document.getElementById('loading'),
+};
+ui.loading.textContent = `Loading layers: 0 / ${numLayers}`;
+
+// Three.js setup (no antialias → crisp squares)
+const scene    = new THREE.Scene();
+const camera   = new THREE.PerspectiveCamera(60, innerWidth/innerHeight, 0.1, 1000);
+camera.position.set(0, -zoom*1.5, zoom);
+const renderer = new THREE.WebGLRenderer({ antialias:false });
+renderer.setSize(innerWidth, innerHeight);
+renderer.getContext().disable(renderer.getContext().CULL_FACE);
+document.body.appendChild(renderer.domElement);
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true;
+
+// Build raw data once
+const total = gridSize * gridSize * numLayers;
+const pos   = new Float32Array(total*3);
+const rat   = new Float32Array(total);
+const lyr   = new Float32Array(total);
+let ptr = 0;
+for (let k = 0; k < numLayers; k++) {
+  const gamma = zMin + k * dz;
+  for (let i = 0; i < gridSize; i++) {
+    for (let j = 0; j < gridSize; j++) {
+      const x0 = (i/(gridSize-1) - 0.5) * zoom;
+      const y0 = (j/(gridSize-1) - 0.5) * zoom;
+      let qx=0, qy=0, iter=0;
+      while (qx*qx + qy*qy <= escapeR*escapeR && iter < maxIter) {
+        const s  = 1 + iter*(gamma-1);
+        const nx = qx*qx - qy*qy + x0*s;
+        const ny = 2*qx*qy + y0*s;
+        qx = nx; qy = ny; iter++;
+      }
+      pos[3*ptr  ] = x0;
+      pos[3*ptr+1] = y0;
+      pos[3*ptr+2] = gamma;
+      rat[ptr]     = iter / maxIter;
+      lyr[ptr]     = k / (numLayers-1);
+      ptr++;
+    }
+  }
+}
+
+// GPU geometry + HSL shader
+const geom = new THREE.BufferGeometry();
+geom.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+geom.setAttribute('ratio',    new THREE.BufferAttribute(rat, 1));
+geom.setAttribute('layerIdx', new THREE.BufferAttribute(lyr, 1));
+geom.setDrawRange(0, 0);
+
+const uniforms = {
+  lowT:      { value: +ui.low.value },
+  highT:     { value: +ui.high.value },
+  alphaMode: { value: +ui.alpha.value },
+  basis:     { value: +ui.basis.value },
+  scheme:    { value: +ui.scheme.value },
+  worldCell: { value: zoom / (gridSize - 1) },    // spacing in world units
+  viewport:  { value: new THREE.Vector2(innerWidth, innerHeight) }
+};
+
+const mat = new THREE.ShaderMaterial({
+  transparent: true,
+  depthTest:   true,
+  depthWrite:  true,
+  blending:    THREE.NormalBlending,
+  uniforms,
+  vertexShader: `
+    attribute float ratio, layerIdx;
+    varying float vR, vL;
+    uniform float worldCell;
+    uniform vec2 viewport;
+    void main(){
+      vR = ratio;
+      vL = layerIdx;
+
+      // compute point size so each quad covers worldCell at this depth
+      vec4 mv = modelViewMatrix * vec4(position, 1.0);
+      float d = -mv.z;
+      float projY = projectionMatrix[1][1];          // tan(fov/2)
+      float sizeInPX = worldCell * projY * viewport.y / d;
+      gl_PointSize = sizeInPX;
+
+      gl_Position = projectionMatrix * mv;
+    }
+  `,
+  fragmentShader: `
+    precision mediump float;
+    varying float vR, vL;
+    uniform float lowT, highT;
+    uniform int alphaMode, basis, scheme;
+
+    // HSL → RGB
+    vec3 hsl2rgb(vec3 hsl){
+      float H=hsl.x, S=hsl.y, L=hsl.z;
+      float C = (1.0 - abs(2.0*L - 1.0)) * S;
+      float X = C * (1.0 - abs(mod(H*6.0,2.0) - 1.0));
+      float m = L - 0.5 * C;
+      vec3 rgb = (H < 1.0/6.0) ? vec3(C, X, 0.0)
+                : (H < 2.0/6.0) ? vec3(X, C, 0.0)
+                : (H < 3.0/6.0) ? vec3(0.0, C, X)
+                : (H < 4.0/6.0) ? vec3(0.0, X, C)
+                : (H < 5.0/6.0) ? vec3(X, 0.0, C)
+                                 : vec3(C, 0.0, X);
+      return rgb + vec3(m);
+    }
+
+    void main(){
+      float val = (basis == 1 ? vL : vR);
+
+      // alpha, with fade/inverse fade
+      float a = 1.0;
+      if(alphaMode == 1)     a = vR;
+      else if(alphaMode == 2) a = 1.0 - vR;
+      if(val < lowT || val > highT) discard;
+      if(a < 0.01) discard;
+
+      // choose H & L from your original JS curves
+      float r = vR;
+      float H, L;
+      if(scheme == 0){
+        H = (260.0 - 260.0 * pow(r,0.9)) / 360.0;
+        L = (10.0   + 65.0  * pow(r,1.2)) / 100.0;
+      } else if(scheme == 1){
+        H = (0.0 + 60.0 * r) / 360.0;
+        L = (50.0 + 50.0 * r) / 100.0;
+      } else {
+        H = (200.0 - 100.0 * r) / 360.0;
+        L = (30.0 + 70.0  * r) / 100.0;
+      }
+      vec3 col = hsl2rgb(vec3(H,1.0,L));
+      gl_FragColor = vec4(col, a);
+    }
+  `
+});
+
+const cloud = new THREE.Points(geom, mat);
+scene.add(cloud);
+
+// UI → uniforms
+function updateUI(){
+  uniforms.lowT.value      = +ui.low.value;
+  ui.lowVal.textContent    = uniforms.lowT.value.toFixed(2);
+  uniforms.highT.value     = +ui.high.value;
+  ui.highVal.textContent   = uniforms.highT.value.toFixed(2);
+  uniforms.alphaMode.value = +ui.alpha.value;
+  uniforms.basis.value     = +ui.basis.value;
+  uniforms.scheme.value    = +ui.scheme.value;
+}
+[ ui.low, ui.high, ui.alpha, ui.basis, ui.scheme ]
+  .forEach(el => el.addEventListener('input', updateUI));
+updateUI();
+
+// progressive draw + render loop
+let count = 0;
+function animate(){
+  requestAnimationFrame(animate);
+  if(count < numLayers){
+    count++;
+    geom.setDrawRange(0, count * gridSize * gridSize);
+    ui.loading.textContent = `Loading layers: ${count} / ${numLayers}`;
+    if(count === numLayers) ui.loading.style.display = 'none';
+  }
+  controls.update();
+  renderer.render(scene, camera);
+}
+animate();
+
+// handle resize
+window.addEventListener('resize', ()=>{
+  camera.aspect = innerWidth/innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+  uniforms.viewport.value.set(innerWidth, innerHeight);
+});
+</script>
+</body>
+</html>
