@@ -751,51 +751,81 @@ void main () {
       }
     ];
 
+    /* ❶  Robust slider update — never lets High ≤ Low  -------------------- */
     function nudgeSlider(sl, delta) {
-      const min = +sl.min, max = +sl.max, step = +sl.step || 0.01;
-      let val = (+sl.value + delta).toFixed(3);          // 3-dec guard
-      val = Math.min(max, Math.max(min, +val));
+      const step = +sl.step || 0.01,
+        min = +sl.min,
+        max = +sl.max;
 
-      /* keep alpha window sane */
-      if (sl === lowThresh) {
-        val = Math.min(val, +highThresh.value - step);
-      } else if (sl === highThresh) {
-        val = Math.max(val, +lowThresh.value + step);
-      }
+      /* snap to the slider’s own grid */
+      let val = +sl.value + delta;
+      val = Math.round(val / step) * step;
+      val = Math.min(max, Math.max(min, val));
 
-      sl.value = (+val).toFixed(step < 1 ? 2 : 0);         // nice print
-    }
-
-
-    addEventListener('keydown', e => {
-      for (const b of binds) {
-        if (e.code === b.inc) { nudgeSlider(b.el, b.step); b.after(); }
-        if (e.code === b.dec) { nudgeSlider(b.el, -b.step); b.after(); }
-      }
-      switch (e.code) {
-        case 'KeyW': move.f = 1; break;
-        case 'KeyS': move.b = 1; break;
-        case 'KeyA': move.l = 1; break;
-        case 'KeyD': move.r = 1; break;
-        case ('Escape' && inFPS): {
-          fpsControls.unlock();
-          break;
+      /* ------------------------------------------------------------------ */
+      if (sl === lowThresh) {                    /* editing LOW α ---------- */
+        /* if we collide with High α → nudge High upward */
+        if (val > +highThresh.value - step) {
+          highThresh.value = (val + step).toFixed(2);
+          paintRange(highThresh);
+        }
+      } else if (sl === highThresh) {            /* editing HIGH α --------- */
+        /* if we collide with Low α → nudge Low downward */
+        if (val < +lowThresh.value + step) {
+          lowThresh.value = (val - step).toFixed(2);
+          paintRange(lowThresh);
         }
       }
-      /* first time a key is pressed → enter FPS mode */
+
+      /* write the new value and refresh */
+      sl.value = val.toFixed(step < 1 ? 2 : 0);
+      paintRange(sl);
+      upd();
+    }
+
+    /* ❷  Fixed-rate key repeat (no OS acceleration) ----------------------- */
+    const timers = new Map();           // keyCode → intervalID
+
+    function startRepeat(code, bind, dir) {
+      if (timers.has(code)) return;     // already running
+      // first tick immediately
+      nudgeSlider(bind.el, dir * bind.step); bind.after();
+      // then steady 16 Hz repeat
+      timers.set(code, setInterval(() => {
+        nudgeSlider(bind.el, dir * bind.step);
+        bind.after();
+      }, 62.5));
+    }
+    function stopRepeat(code) {
+      clearInterval(timers.get(code));
+      timers.delete(code);
+    }
+
+    /* ❸  Key handlers ----------------------------------------------------- */
+    addEventListener('keydown', e => {
+      for (const b of binds) {
+        if (e.code === b.inc) startRepeat(e.code, b, +1);
+        if (e.code === b.dec) startRepeat(e.code, b, -1);
+      }
+      if (!e.repeat) {
+        if (e.code === 'KeyW') move.f = 1;
+        if (e.code === 'KeyS') move.b = 1;
+        if (e.code === 'KeyA') move.l = 1;
+        if (e.code === 'KeyD') move.r = 1;
+        if (e.code === 'Escape' && inFPS) fpsControls.unlock();
+      }
       if (!inFPS && (move.f || move.b || move.l || move.r)) {
         controls.enabled = false;
-        fpsControls.lock();               // request pointer-lock
-        inFPS = true;
+        fpsControls.lock();
       }
     });
+
     addEventListener('keyup', e => {
-      switch (e.code) {
-        case 'KeyW': move.f = 0; break;
-        case 'KeyS': move.b = 0; break;
-        case 'KeyA': move.l = 0; break;
-        case 'KeyD': move.r = 0; break;
-      }
+      stopRepeat(e.code);               // stop slider auto-repeat
+      if (e.code === 'KeyW') move.f = 0;
+      if (e.code === 'KeyS') move.b = 0;
+      if (e.code === 'KeyA') move.l = 0;
+      if (e.code === 'KeyD') move.r = 0;
     });
 
 
