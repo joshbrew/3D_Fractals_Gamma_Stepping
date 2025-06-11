@@ -1,0 +1,947 @@
+<!DOCTYPE html>
+<!-- Joshua Brewster – freeware. 3-D Fractal Point Cloud (14 formulas, 8 palettes) -->
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>3-D Fractal Point Cloud – Full Features</title>
+<style>
+:root{
+  --bg:#000; --panel:rgba(0,0,0,.78); --border:#555; --gap:.5rem;
+  --txt:#fff; --accent:#0f0; --font:12px/1.3 "Fira Mono","Consolas",monospace;
+}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0;background:var(--bg);color:var(--txt);font:var(--font)}
+#ui{
+  position:absolute;top:10px;left:10px;z-index:10;max-height:calc(100% - 20px);
+  width:260px;overflow:auto;padding-right:.25rem;
+}
+details{background:var(--panel);border:1px solid var(--border);border-radius:6px;padding:.6rem}
+summary{cursor:pointer;font-weight:700;margin:-.6rem -.6rem .6rem;padding:.6rem}
+label{display:flex;align-items:center;gap:var(--gap);margin:var(--gap) 0}
+label>span{min-width:3ch;text-align:right}
+select,
+input[type=number],
+/* ─── fully custom range so the thumb reaches both ends ─────────────── */
+input[type=range]{
+  -webkit-appearance:none;   /* strip browser default */
+  appearance:none;
+  width:100%;
+  background:transparent;    /* we’ll draw the track ourselves */
+  margin:0;                  /* kill any user-agent margin */
+  height:1.1rem;             /* enough room for the thumb */
+  cursor:pointer;
+}
+
+/* track (WebKit / Blink) */
+input[type=range]::-webkit-slider-runnable-track{
+  width:100%;
+  height:6px;
+  background:#0d66ff;        /* blue strip */
+  border-radius:3px;
+}
+/* track (Firefox) */
+input[type=range]::-moz-range-track{
+  width:100%;
+  height:6px;
+  background:#0d66ff;
+  border-radius:3px;
+}
+
+/* thumb (WebKit / Blink) */
+input[type=range]::-webkit-slider-thumb{
+  -webkit-appearance:none;
+  appearance:none;
+  width:14px;
+  height:14px;
+  background:#0086ff;
+  border-radius:50%;
+  border:none;
+  margin-top:-4px;           /* vertically centre on 6-px track */
+}
+/* thumb (Firefox) */
+input[type=range]::-moz-range-thumb{
+  width:14px;
+  height:14px;
+  background:#0086ff;
+  border:none;
+  border-radius:50%;
+}
+fieldset{border:1px solid var(--border);padding:.6rem;margin:var(--gap) 0}
+legend{padding:0 .4rem}
+button{padding:.3rem;margin-top:.4rem;width:100%;background:#222;border:1px solid var(--border);color:var(--txt);cursor:pointer}
+button:hover{background:#333}
+hr{border:none;border-top:1px solid var(--border);margin:var(--gap) 0}
+#loading{
+  position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
+  background:rgba(0,0,0,.85);padding:.7rem 1rem;border-radius:4px;
+  font-size:14px;font-weight:700;color:var(--accent);z-index:20
+}
+select,
+input[type=number]{
+  height:20px;
+  background:#111;          /* dark but lighter than pure black      */
+  color:#fff;               /* force white text                      */
+  border:1px solid #555;    /* same border tone as rest of panel     */
+}
+
+/* options inside an open dropdown (Chrome/Blink) */
+select option{
+  background:#111;
+  color:#fff;
+}
+  
+/* ───── custom scrollbar for the <div id="ui"> panel ──────────────── */
+#ui{
+  scrollbar-width:thin;                         /* Firefox             */
+  scrollbar-color:#0f0 #111;                    /* thumb  track        */
+}
+
+/* WebKit / Blink ----------------------------------------------------- */
+#ui::-webkit-scrollbar{
+  width:8px;
+}
+#ui::-webkit-scrollbar-track{
+  background:#111;                              /* dark track          */
+}
+#ui::-webkit-scrollbar-thumb{
+  background:#00c800;                           /* neon green thumb    */
+  border-radius:4px;
+  border:1px solid #0a0;                        /* subtle bevel        */
+}
+#ui::-webkit-scrollbar-thumb:hover{
+  background:#1aff1a;                           /* brighter on hover   */
+}
+</style>
+<script type="importmap">
+  { "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.152.2/build/three.module.js" } }
+</script>
+</head>
+  
+<body>
+<div id="ui">
+<details open>
+<summary>Controls ▾</summary>
+
+  <!-- Fractal selector (14) -->
+  <label>Fractal Type:
+    <select id="fractalType">
+      <option value="0" selected>Mandelbrot</option>
+      <option value="20">Inverse Mandelbrot (1/z²+c)</option>
+      <option value="3">Perpendicular Mandel</option>
+      <option value="2">Burning Ship</option>
+      <option value="21">Burning Ship – Tip Zoom</option>
+      <option value="4">Celtic</option>
+      <option value="5">Buffalo</option>
+      <option value="6">Phoenix (λ ≈ -0.5)</option>
+      <option value="26">Nova fractal</option>
+      <option value="27">Man-o-War</option>
+      <option value="11">Heart</option>
+      <option value="9">Cosine</option>
+      <option value="10">Sine</option>
+      <option value="12">Perpendicular Buffalo</option>
+      <option value="16">Tangent (tan z + c)</option>
+      <option value="17">Exponential (exp z + c)</option>
+      <option value="1">Tricorn Mandelbrot</option>
+      <option value="13">Spiral Mandelbrot</option>
+      <option value="7">Cubic Multibrot</option>
+      <option value="8">Quartic Multibrot</option>
+      <option value="14">Quintic Multibrot (z⁵ + c)</option>
+      <option value="15">Sextic Multibrot (z⁶ + c)</option>
+      <option value="18">Septic Multibrot (z⁷+c)</option> 
+      <option value="19">Octic Multibrot (z⁸+c)</option>  
+      <option value="22">Cubic Ship (|z|³ + c)</option>
+      <option value="23">Quartic Ship (|z|⁴ + c)</option>
+      <option value="24">Quintic Ship (|z|⁵ + c)</option>
+      <option value="25">Hexic Ship (|z|⁶ + c)</option>
+    </select>
+  </label>
+
+  <!-- Color schemes (same 8) -->
+  <label>Color Scheme:
+    <select id="colorScheme">
+      <option value="0">Violet-Cyan-White</option>
+      <option value="1">Fire</option>
+      <option value="2">Ice</option>
+      <option value="3">Sunset</option>
+      <option value="4">Forest</option>
+      <option value="5">Neon</option>
+      <option value="6">Grayscale</option>
+      <option value="7">Inferno</option>
+      <option value="8">Rainbow 360 °</option>
+      <option value="9">Rainbow 720 °</option>
+      <option value="10">Pastel Loop</option>
+      <option value="11">Viridis-ish</option>
+      <option value="12">Magma</option>
+      <option value="13">Plasma</option>
+      <option value="14">Cividis</option>
+      <option value="15">Ocean</option>
+      <option value="16">Midnight Blue</option>
+      <option value="17">Cool-Warm Diverge</option>
+    </select>
+  </label>
+
+  <!-- existing UI trimmed for brevity: alpha, thresholds, clip … -->
+  <label>Alpha Mode:
+    <select id="alphaMode"><option value="0">Solid</option>
+      <option value="1" selected>Fade In</option><option value="2">Inverse</option></select></label>
+  <label>Threshold Basis:
+    <select id="thresholdBasis"><option value="0">Escape Ratio</option><option value="1">Layer Index</option></select></label>
+  <label>Low α Threshold:<input id="lowThresh" type="range" min="0" max="1" step="0.01" value="0.20"><span id="lowVal">0.20</span></label>
+  <label>High α Threshold:<input id="highThresh" type="range" min="0" max="1" step="0.01" value="1"><span id="highVal">1.00</span></label>
+  <hr>
+  <label>Clip X ≤<input id="clipX" type="range" min="-2" max="2" step="0.01" value="2"><span id="clipXVal">2.00</span></label>
+  <label>Clip Y ≤<input id="clipY" type="range" min="-2" max="2" step="0.01" value="2"><span id="clipYVal">2.00</span></label>
+  <label>Clip Z ≤<input id="clipZ" type="range" min="0.5" max="2" step="0.01" value="2"><span id="clipZVal">2.00</span></label>
+  
+  <label>Visible Layers:<input id="layerVis" type="range"><span id="layerVal"></span></label>
+  <label>Point Size ×:<input id="ptSize" type="range" min="0.2" max="4" step="0.05" value="1"><span id="ptVal">1.00</span></label>
+   <label>Z Spacing ×:<input id="zScale" type="range" min="0.1" max="50" step="0.1" value="1"><span id="zVal">1.00</span></label>
+  <hr>
+
+  <fieldset style="border:1px solid #555;padding:6px">
+    <legend>Render Parameters</legend>
+    <label>gridSize (px):<input id="pGrid" type="number" min="100" max="1200" step="50" value="800"></label>
+    <label>zMin:<input id="pZmin" type="number" step="0.01" value="0"></label>
+    <label>zMax:<input id="pZmax" type="number" step="0.01" value="2"></label>
+    <label>dz (step):<input id="pDz"   type="number" step="0.001" value="0.02"></label>
+    <label>zoom:<input id="pZoom" type="number" step="0.1" value="4"></label>
+    <label>escapeR:<input id="pEsc"  type="number" step="0.5" value="4"></label>
+    <label>maxIter:<input id="pIter" type="number" min="10" max="1000" step="10" value="100"></label>
+    <label>dx (real):<input id="pDx" type="number" step="0.001" value="0"></label>
+    <label>dy (imag):<input id="pDy" type="number" step="0.001" value="0"></label>
+    <button id="applyParams" style="width:100%;margin-top:6px">Apply</button>
+  </fieldset>
+
+</details>
+</div>
+<div id="loading">Loading layers: 0 / 0</div>
+
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'https://cdn.jsdelivr.net/npm/three@0.152.2/examples/jsm/controls/OrbitControls.js';
+ // import { PointerLockControls } from 'https://cdn.jsdelivr.net/npm/three@0.152.2//examples/jsm/controls/PointerLockControls.js';
+/* ------- constants (unchanged) ------- */
+let gridSize=800,zMin=0,zMax=2,dz=.02,numLayers=Math.round((zMax-zMin)/dz)+1, dx=0, dy=0;
+let ptsPerLayer=gridSize*gridSize,zoom=4,escapeR=4,maxIter=100;
+let MAX_WORKERS=Math.min(navigator.hardwareConcurrency||4,8);
+    
+let totalPts=ptsPerLayer*numLayers;                  // initialise count s
+/* ------- UI refs ------- */
+const $ = id => document.getElementById(id);
+
+/* raw elements ---------------------------------------------------------- */
+const controlMode = $('controlMode');
+const fractalType     = $('fractalType');
+const colorScheme     = $('colorScheme');
+const alphaMode       = $('alphaMode');
+const thresholdBasis  = $('thresholdBasis');
+const lowThresh       = $('lowThresh');
+const highThresh      = $('highThresh');
+const lowVal          = $('lowVal');
+const highVal         = $('highVal');
+const clipX           = $('clipX');
+const clipY           = $('clipY');
+const clipZ           = $('clipZ');
+const clipXVal        = $('clipXVal');
+const clipYVal        = $('clipYVal');
+const clipZVal        = $('clipZVal');
+const layerVis        = $('layerVis');
+const layerVal        = $('layerVal');
+const ptSize          = $('ptSize');
+const zScale  = $('zScale'),  zVal   = $('zVal');
+const ptVal           = $('ptVal');
+const loading         = $('loading');
+const pGrid           = $('pGrid');
+const pZmin           = $('pZmin');
+const pZmax           = $('pZmax');
+const pDz             = $('pDz');
+const pZoom           = $('pZoom');
+const pEsc            = $('pEsc');
+const pIter           = $('pIter');
+const pDx   = $('pDx');
+const pDy   = $('pDy');
+const applyParams     = $('applyParams');
+
+/* keep the object exactly as you already had it ------------------------- */
+const ui = {
+  fractal: fractalType, scheme: colorScheme, alpha: alphaMode, basis: thresholdBasis,
+  low: lowThresh, high: highThresh, lowVal, highVal,
+  clipX, clipY, clipZ, clipXVal, clipYVal, clipZVal,
+  layerVis, layerVal, ptSize, ptVal, loading, pDx, pDy,
+  pGrid, pZmin, pZmax, pDz, pZoom, pEsc, pIter, apply: applyParams
+};
+/* ------- THREE setup (identical) ------- */
+let scene=new THREE.Scene();
+let camera=new THREE.PerspectiveCamera(60,innerWidth/innerHeight,.1,1000);
+camera.position.set(0,-zoom*1.5,zoom);
+let renderer=new THREE.WebGLRenderer({antialias:false});
+renderer.setSize(innerWidth,innerHeight);
+renderer.getContext().disable(renderer.getContext().CULL_FACE);
+document.body.appendChild(renderer.domElement);
+let controls=new OrbitControls(camera,renderer.domElement);controls.enableDamping=true;
+
+/* ------- geometry buffers ------- */
+let posBuf=new Float32Array(totalPts*3),ratBuf=new Float32Array(totalPts),lyrBuf=new Float32Array(totalPts);
+let geom=new THREE.BufferGeometry();
+geom.setAttribute('position',new THREE.BufferAttribute(posBuf,3));
+geom.setAttribute('ratio',new THREE.BufferAttribute(ratBuf,1));
+geom.setAttribute('layerIdx',new THREE.BufferAttribute(lyrBuf,1));
+geom.setDrawRange(0,0);
+
+/* ------- uniforms & shaders  – same as before  ------- */
+const uniforms = {
+  lowT :{value:+ui.low.value},   highT:{value:+ui.high.value},
+  alphaMode:{value:+ui.alpha.value},   basis:{value:+ui.basis.value},
+  scheme:{value:+ui.scheme.value},
+  clipX:{value:+ui.clipX.value}, clipY:{value:+ui.clipY.value}, clipZ:{value:+ui.clipZ.value},
+  worldCell:{value:zoom/(gridSize-1)},
+  pointScale:{value:+ui.ptSize.value},
+  zGap      :{value:+zScale.value}, 
+  viewport:{value:new THREE.Vector2(innerWidth, innerHeight)}
+};
+
+const mat=new THREE.ShaderMaterial({transparent:true,depthTest:true,depthWrite:true,
+  blending:THREE.NormalBlending,uniforms,
+   vertexShader:/* glsl */`
+precision highp float;
+attribute float ratio, layerIdx;
+varying   float vR, vL;
+varying   vec3  vW;
+uniform float worldCell, pointScale, zGap;
+uniform vec2  viewport;
+void main () {
+  vR = ratio;  vL = layerIdx;
+
+  /* scale Z by the new uniform before anything else */
+  
+  vec3 pos = vec3(position.xy, position.z * zGap - zGap*1.0);
+  vW = pos;
+
+  vec4 mv = modelViewMatrix * vec4(pos, 1.0);
+  float d = -mv.z;
+  gl_PointSize = max(1.0,
+                     worldCell * pointScale *
+                     projectionMatrix[1][1] * viewport.y / d);
+  gl_Position = projectionMatrix * mv;
+}`,
+  fragmentShader: /* glsl */`
+precision highp float;
+
+varying vec3  vW;
+varying float vR, vL;
+
+uniform float lowT, highT;
+uniform int   alphaMode, basis, scheme;
+uniform float clipX, clipY, clipZ, worldCell;
+
+/* ---------- helpers ---------- */
+vec3 hsl2rgb (vec3 hsl) {
+  float H = hsl.x, S = hsl.y, L = hsl.z;
+  float C = (1.0 - abs(2.0 * L - 1.0)) * S;
+  float X = C * (1.0 - abs(mod(H * 6.0, 2.0) - 1.0));
+  float m = L - 0.5 * C;
+  vec3  rgb =
+        (H < 1.0/6.0) ? vec3(C, X, 0.0) :
+        (H < 2.0/6.0) ? vec3(X, C, 0.0) :
+        (H < 3.0/6.0) ? vec3(0.0, C, X) :
+        (H < 4.0/6.0) ? vec3(0.0, X, C) :
+        (H < 5.0/6.0) ? vec3(X, 0.0, C) :
+                         vec3(C, 0.0, X);
+  return rgb + m;
+}
+
+/* disengages when slider ≈ 2.0 */
+float clipGate (float coord, float cut) {
+  return (cut >= 1.999)
+       ? 1.0
+       : smoothstep(cut, cut - worldCell, coord);
+}
+
+/* ---------- main ---------- */
+void main () {
+  float a = 1.0;
+  if (alphaMode == 1)      a = vR;
+  else if (alphaMode == 2) a = 1.0 - vR;
+
+  /* apply X/Y/Z clip gates */
+  a *= clipGate(vW.x, clipX)
+     * clipGate(vW.y, clipY)
+     * clipGate(vW.z, clipZ);
+
+  float val = (basis == 1 ? vL : vR);
+  if (val < lowT || val > highT || a < 0.01) discard;
+
+  float r = vR, H, L;
+
+
+      if(scheme==0){                       /* Violet-Cyan-White */
+        H = (260.0 - 260.0*pow(r,0.9)) / 360.0;
+        L = (10.0  + 65.0 *pow(r,1.2)) / 100.0;
+
+      }else if(scheme==1){                 /* Fire */
+        H = ( 0.0 + 60.0*r) / 360.0;
+        L = 0.50 + 0.50*r;
+
+      }else if(scheme==2){                 /* Ice */
+        H = (200.0 - 100.0*r) / 360.0;
+        L = 0.30 + 0.70*r;
+
+      }else if(scheme==3){                 /* Sunset */
+        H = ( 30.0 + 270.0*r) / 360.0;
+        L = 0.30 + 0.40*r;
+
+      }else if(scheme==4){                 /* Forest */
+        H = (120.0 -  90.0*r) / 360.0;
+        L = 0.20 + 0.50*r;
+
+      }else if(scheme==5){                 /* Neon */
+        H = (300.0 - 240.0*r) / 360.0;
+        L = 0.55 + 0.20*sin(r*3.14159);
+
+      }else if(scheme==6){                 /* Grayscale */
+        gl_FragColor = vec4(vec3(r), a);
+        return;
+
+      /* --- retuned Inferno (dark purple → red → gold, no green cast) --- */
+      }else if(scheme==7){
+        H = (10.0 + 60.0*pow(r,1.2)) / 360.0;   // 10°→70°
+        L = 0.15 + 0.75*pow(r,1.5);
+
+      /* --- rainbow & pastel gimmicks --- */
+      }else if(scheme==8){                      /* Rainbow 360° */
+        H = r;
+        L = 0.45 + 0.25*(1.0 - r);
+
+      }else if(scheme==9){                      /* Rainbow 720° */
+        H = mod(2.0*r, 1.0);
+        L = 0.50;
+
+      }else if(scheme==10){                     /* Pastel loop */
+        H = mod(3.0*r + 0.1, 1.0);
+        L = 0.65;
+
+      }else if(scheme==11){                     /* Viridis-ish */
+        H = 0.75 - 0.55*r;                      // 270°→72°
+        L = 0.25 + 0.55*r*r;
+
+      /* --- NEW darker / cooler palettes --- */
+      }else if(scheme==12){                     /* Magma */
+        H = (5.0 + 70.0*r) / 360.0;             // deep plum → yellow-orange
+        L = 0.10 + 0.80*pow(r,1.4);
+
+      }else if(scheme==13){                     /* Plasma */
+        H = (260.0 - 260.0*r) / 360.0;          // purple → yellow
+        L = 0.30 + 0.60*pow(r,0.8);
+
+      }else if(scheme==14){                     /* Cividis */
+        H = (230.0 - 160.0*r) / 360.0;          // blue-green → orange
+        L = 0.25 + 0.60*r;
+
+      }else if(scheme==15){                     /* Ocean */
+        H = (200.0 + 40.0*r) / 360.0;           // teal → azure
+        L = 0.20 + 0.50*r;
+
+      }else if(scheme==16){                     /* Midnight Blue */
+        H = 0.6;                               // ~250°
+        L = 0.15 + 0.35*r;
+
+      }else if(scheme==17){                     /* Cool-Warm diverging */
+        H = r < 0.5
+            ? mix(0.55, 0.75, r*2.0)            // cyan-blue branch
+            : mix(0.02, 0.11, (r-0.5)*2.0);     // orange-red branch
+        L = 0.25 + 0.55*abs(r-0.5);
+
+      /* fallback: old Inferno-style if scheme out of range */
+      }else{
+        H = (40.0 + 310.0*pow(r,1.3)) / 360.0;
+        L = 0.20 + 0.50*pow(r,0.8);
+      }
+      vec3 col = hsl2rgb(vec3(H, 1.0, L));
+      gl_FragColor = vec4(col, a);
+}`
+});
+let points = new THREE.Points(geom, mat);
+points.frustumCulled = false;          // keep everything visible for now
+scene.add(points);
+
+/* ------- UI → uniforms ------- */
+function upd(){
+  uniforms.lowT.value  = +ui.low.value;   ui.lowVal.textContent =(+ui.low.value).toFixed(2);
+  uniforms.highT.value = +ui.high.value;  ui.highVal.textContent=(+ui.high.value).toFixed(2);
+  uniforms.alphaMode.value = +ui.alpha.value;
+  uniforms.basis.value     = +ui.basis.value;
+  uniforms.scheme.value    = +ui.scheme.value;
+
+  uniforms.clipX.value = +ui.clipX.value; ui.clipXVal.textContent=(+ui.clipX.value).toFixed(2);
+  uniforms.clipY.value = +ui.clipY.value; ui.clipYVal.textContent=(+ui.clipY.value).toFixed(2);
+  uniforms.clipZ.value = +ui.clipZ.value; ui.clipZVal.textContent=(+ui.clipZ.value).toFixed(2);
+uniforms.zGap.value       = +zScale.value; zVal.textContent   = (+zScale.value).toFixed(2);
+  uniforms.pointScale.value= +ui.ptSize.value; ui.ptVal.textContent=(+ui.ptSize.value).toFixed(2);
+}
+[ui.low, ui.high, ui.alpha, ui.basis, ui.scheme,
+ ui.clipX, ui.clipY, ui.clipZ,
+ ui.ptSize, zScale].forEach(e=>e.addEventListener('input', upd));
+upd();
+
+  ui.layerVis.addEventListener('input', ()=> setVisibleLayers(+ui.layerVis.value));
+function setVisibleLayers(nLayers){
+  const count = Math.max(1, nLayers|0);
+  geom.setDrawRange(0, count * ptsPerLayer);
+  ui.layerVal.textContent = count.toString();
+}
+  
+  /* ───── render-parameter “Apply” button ───── */
+ui.apply.addEventListener('click', ()=>{
+  gridSize = +ui.pGrid.value|0;
+  zMin     = +ui.pZmin.value;
+  zMax     = +ui.pZmax.value;
+  dz       = +ui.pDz.value;
+  zoom     = +ui.pZoom.value;
+  escapeR  = +ui.pEsc.value;
+  maxIter  = +ui.pIter.value;
+  dx       = +ui.pDx.value;
+  dy       = +ui.pDy.value;
+  camera.position.set(0, -zoom*1.5, zoom);
+  rebuildScene();
+});
+
+  
+/* ---------- Worker code (14 formulas) ---------- */
+const workerSrc = `
+/* ---------- Burning-Ship Multibrot helpers ---------- */
+function shipPower(ax, ay, p){           // |z|^p in polar coords
+  // r = sqrt(ax²+ay²)  ;  θ = atan2(ay, ax)
+  const r2 = ax*ax + ay*ay;
+  const r  = Math.pow(r2, 0.5 * p);      // r^p
+  const th = Math.atan2(ay, ax) * p;     // pθ
+  return [ r*Math.cos(th),               // Re part
+           r*Math.sin(th) ];             // Im part
+}
+
+const SQRT2_INV = 1/Math.sqrt(2);
+const ROT45X =  0.7071067811865476;   //  cos 45°
+const ROT45Y = -0.7071067811865476;   // -sin 45°
+
+self.onmessage = e => {
+  const { gridSize, k, zMin, dz, zoom, escapeR, maxIter, fractalType, dx = 0, dy = 0 } = e.data;
+  const N   = gridSize * gridSize;
+  const pos = new Float32Array(N * 3);
+  const rat = new Float32Array(N);
+  const gamma = zMin + k * dz;
+
+  let idx = 0;
+
+
+  for (let i = 0; i < gridSize; i++) {
+    const x0 = (i / (gridSize - 1) - 0.5) * zoom + dx;
+    for (let j = 0; j < gridSize; j++) {
+      const y0 = (j / (gridSize - 1) - 0.5) * zoom + dy;
+
+      /* z, previous-z (for Phoenix) */
+      let qx = 0, qy = 0, px = 0, py = 0;
+      let iter = 0;
+
+      while (qx*qx + qy*qy <= escapeR*escapeR && iter < maxIter) {
+        const s = 1 + iter * (gamma - 1);      // slice scaling
+        const a = Math.abs(qx);
+        const b = Math.abs(qy);
+
+        let nx, ny;
+
+        switch (fractalType) {
+          case 1:  // Tricorn
+            nx =  qx*qx - qy*qy + x0*s;
+            ny = -2*qx*qy      + y0*s;
+            break;
+
+          case 2:  // Burning Ship
+            nx =  a*a - b*b + x0*s;
+            ny =  2*a*b     + y0*s;
+            break;
+
+          case 3:  // Perpendicular Mandelbrot
+            nx =  qx*qx - qy*qy + x0*s;
+            ny = -2*a*qy        + y0*s;
+            break;
+
+          case 4:  // Celtic
+            nx =  Math.abs(qx*qx - qy*qy) + x0*s;
+            ny =  2*qx*qy                + y0*s;
+            break;
+
+          case 5:  // Buffalo
+            nx =  Math.abs(qx*qx - qy*qy) + x0*s;
+            ny = -2*qx*qy                + y0*s;
+            break;
+
+          case 6:  // Phoenix (λ = –0.5)
+            nx =  qx*qx - qy*qy + x0*s - 0.5*px;
+            ny =  2*qx*qy       + y0*s - 0.5*py;
+            px = qx;  py = qy;
+            break;
+
+          case 7: { // Cubic Multibrot (z³ + c)
+            const r2    = qx*qx + qy*qy;
+            const theta = Math.atan2(qy, qx);
+            const r3    = Math.pow(r2, 1.5);        // r³
+            nx = r3 * Math.cos(3*theta) + x0*s;
+            ny = r3 * Math.sin(3*theta) + y0*s;
+            break;
+          }
+
+          case 8: { // Quartic Multibrot (z⁴ + c)
+            const r2    = qx*qx + qy*qy;
+            const theta = Math.atan2(qy, qx);
+            const r4    = r2 * r2;                  // r⁴
+            nx = r4 * Math.cos(4*theta) + x0*s;
+            ny = r4 * Math.sin(4*theta) + y0*s;
+            break;
+          }
+
+          case 9:  // Cosine
+            nx =  Math.cos(qx) * Math.cosh(qy)  + x0*s;
+            ny = -Math.sin(qx) * Math.sinh(qy)  + y0*s;
+            break;
+
+          case 10: // Sine
+            nx =  Math.sin(qx) * Math.cosh(qy)  + x0*s;
+            ny =  Math.cos(qx) * Math.sinh(qy)  + y0*s;
+            break;
+
+          case 11: {         // Heart
+            // z_{n+1} = (|Re(z_n)| + i·Im(z_n))^2 + c
+            const rx = Math.abs(qx);          // ⎯ only real part
+            nx = rx*rx - qy*qy + x0*s;
+            ny = 2*rx*qy      + y0*s;
+            break;
+          }
+
+          case 12: // Perpendicular Buffalo
+            nx =  Math.abs(qx*qx - qy*qy) + x0*s;
+            ny = -2*a*qy                 + y0*s;
+            break;
+
+           /* -------- Spiral Mandelbrot (simple quadratic with a twist) ----------------- */
+           case 13: {                         
+              const THETA   = 0.35+2*gamma;            // per-layer twist
+              const wRe = Math.cos(THETA);
+              const wIm = Math.sin(THETA);
+
+              /* z²  (= qx²-qy²  +  i·2qxqy) */
+              const zx2 = qx*qx - qy*qy;
+              const zy2 = 2.0*qx*qy;
+
+              /* w·z²  (complex multiply) */
+              const tx = wRe*zx2 - wIm*zy2;
+              const ty = wRe*zy2 + wIm*zx2;
+
+              nx = tx + x0*s;
+              ny = ty + y0*s;
+              break;
+           }
+            
+           case 14: {                        // Quintic Multibrot  (z^5 + c)
+              const r2    = qx*qx + qy*qy;
+              const theta = Math.atan2(qy, qx);
+              const r5    = Math.pow(r2, 2.5);           // r^(5/2)
+              nx = r5 * Math.cos(5*theta) + x0*s;
+              ny = r5 * Math.sin(5*theta) + y0*s;
+              break;
+           }
+
+           case 15: {                        // Sextic Multibrot   (z^6 + c)
+              const r2    = qx*qx + qy*qy;
+              const theta = Math.atan2(qy, qx);
+              const r6    = r2 * r2 * r2;                   // r^3, then squared → r^6
+              nx = r6 * Math.cos(6*theta) + x0*s;
+              ny = r6 * Math.sin(6*theta) + y0*s;
+              break;
+           }
+
+           case 16: {                        // Tangent fractal    (tan z + c)
+              // tan(x+iy) = (sin2x + i sinh2y) / (cos2x + cosh2y)
+              const sin2x = Math.sin(2*qx);
+              const sinh2y= Math.sinh(2*qy);
+              const denom = Math.cos(2*qx) + Math.cosh(2*qy) + 1e-9; // avoid /0
+              nx = sin2x / denom + x0*s;
+              ny = sinh2y/ denom + y0*s;
+              break;
+           }
+
+           case 17: {                        // Exponential fractal (exp z + c)
+              const ex = Math.exp(qx);
+              nx = ex * Math.cos(qy) + x0*s;
+              ny = ex * Math.sin(qy) + y0*s;
+              break;
+           }
+            
+          case 18: {                      // Septic Multibrot (z^7 + c)
+            const r2    = qx*qx + qy*qy;
+            const theta = Math.atan2(qy, qx);
+            const r7    = Math.pow(r2, 3.5);          // r^(7/2)
+            nx = r7 * Math.cos(7*theta) + x0*s;
+            ny = r7 * Math.sin(7*theta) + y0*s;
+            break;
+          }
+
+          case 19: {                      // Octic Multibrot (z^8 + c)
+            const r2    = qx*qx + qy*qy;
+            const theta = Math.atan2(qy, qx);
+            const r8    = r2*r2*r2*r2;                  // r^8
+            nx = r8 * Math.cos(8*theta) + x0*s;
+            ny = r8 * Math.sin(8*theta) + y0*s;
+            break;
+          }
+
+          case 20: {                      // Inverse Mandelbrot (1/z^2 + c)
+            const r2 = qx*qx + qy*qy + 1e-9;            // avoid /0
+            const denom = r2*r2;                        // (|z|²)² = |z|⁴
+            nx = ( qx*qx - qy*qy)/denom + x0*s;
+            ny = (-2*qx*qy)          /denom + y0*s;
+            break;
+          }
+          
+          case 21: {   // Burning Ship  – deep zoom on the forward tip
+            /*  centre of the tiny replica (credit: Hofstadter needles list)
+                approximately  (–1.7443359375 , –0.017451171875)           */
+            const cx = -1.7443359375;
+            const cy = -0.017451171875;
+
+            /* extra magnification: shrink the grid  to ~3 % of normal  */
+            const sub = 0.04;                      // ← tweak to zoom further
+
+            /* translate AND shrink the c-plane sample */
+            const dx = x0 * sub + cx;
+            const dy = y0 * sub + cy;
+
+            nx = a*a - b*b + dx * s;               // same Burning-Ship update
+            ny = 2.0*a*b   + dy * s;
+            break;
+          }
+          
+        case 22: {  // Cubic Burning Ship  |z|³ + c
+          const [rx, ry] = shipPower(a, b, 3.0);
+          nx =  rx + x0*s;
+          ny =  ry + y0*s;
+          break;
+        }
+
+        case 23: {  // Quartic Burning Ship |z|⁴ + c
+          const [rx, ry] = shipPower(a, b, 4.0);
+          nx =  rx + x0*s;
+          ny =  ry + y0*s;
+          break;
+        }
+
+        case 24: {  // Quintic Burning Ship |z|⁵ + c
+          const [rx, ry] = shipPower(a, b, 5.0);
+          nx =  rx + x0*s;
+          ny =  ry + y0*s;
+          break;
+        }
+
+        case 25: {  // Hexic Burning Ship  |z|⁶ + c
+          const [rx, ry] = shipPower(a, b, 6.0);
+          nx =  rx + x0*s;
+          ny =  ry + y0*s;
+          break;
+        }
+        
+        /* -------- Nova fractal (Newton method blend) -------------------------------- */
+        case 26: {                                // z − (z³ − 1)/(3 z²) + c
+          /* z² */
+          const zx2 = qx*qx - qy*qy,
+                zy2 = 2.0*qx*qy;
+
+          /* z³ = z²·z */
+          const zx3 = zx2*qx - zy2*qy,
+                zy3 = zx2*qy + zy2*qx;
+
+          /* numerator (z³ − 1) */
+          const numx = zx3 - 1.0,
+                numy = zy3;
+
+          /* denominator 3 z² */
+          const denx = 3.0*zx2,
+                deny = 3.0*zy2;
+          const den2 = denx*denx + deny*deny + 1e-9;     // avoid /0
+
+          /* (z³−1)/(3 z²) */
+          const qxDiv = (numx*denx + numy*deny)/den2;
+          const qyDiv = (numy*denx - numx*deny)/den2;
+
+          nx = qx - qxDiv + x0*s;
+          ny = qy - qyDiv + y0*s;
+          break;
+        }
+
+        /* -------- Man-o-War (needs previous-z, reuse Phoenix vars) ------------------ */
+        case 27: {                                // z² + c + z_{n-1}
+          nx = qx*qx - qy*qy + x0*s + px;
+          ny = 2.0*qx*qy     + y0*s + py;
+          px = qx;  py = qy;                       // store prev-z
+          break;
+        }
+        
+        default: // Mandelbrot
+            nx = qx*qx - qy*qy + x0*s;
+            ny = 2*qx*qy       + y0*s;
+        }
+
+        qx = nx;  qy = ny;
+        iter++;
+      }
+
+      const base = 3*idx;
+      pos[base    ] = x0;
+      pos[base + 1] = y0;
+      pos[base + 2] = gamma;
+      rat[idx]      = iter / maxIter;
+      idx++;
+    }
+  }
+
+  self.postMessage({ k, pos: pos.buffer, rat: rat.buffer },
+                   [pos.buffer, rat.buffer]);
+};
+`;
+const workerURL=URL.createObjectURL(new Blob([workerSrc],{type:'application/javascript'}));
+
+  
+/* ───── build / rebuild helpers ───── */
+
+function buildGeometry () {
+  recalcDerived();
+
+  posBuf = new Float32Array(totalPts * 3);
+  ratBuf = new Float32Array(totalPts);
+  lyrBuf = new Float32Array(totalPts);
+
+  geom = new THREE.BufferGeometry();
+  geom.setAttribute('position', new THREE.BufferAttribute(posBuf, 3));
+  geom.setAttribute('ratio',    new THREE.BufferAttribute(ratBuf, 1));
+  geom.setAttribute('layerIdx', new THREE.BufferAttribute(lyrBuf, 1));
+  geom.setDrawRange(0, 0);               // invisible until we animate
+
+  points = new THREE.Points(geom, mat);
+  points.frustumCulled = false;
+}
+
+function rebuildScene () {
+  scene.remove(points);
+  mat.dispose();
+  geom.dispose();
+
+  buildGeometry();
+  scene.add(points);
+
+  uniforms.worldCell.value = zoom / (gridSize - 1);
+
+  revealStarted = false;
+  revealPts     = 0;
+
+  compute();                              // restart worker pipeline
+}
+
+/* ───── reveal / wipe-on state ───── */
+let revealStarted = false;
+let revealPts     = 0;let revealRate=0;                 // points-per-second; set later
+function recalcDerived () {
+  numLayers   = Math.round((zMax - zMin) / dz) + 1;
+  ptsPerLayer = gridSize * gridSize;
+  totalPts    = ptsPerLayer * numLayers;
+  ui.layerVis.max = numLayers;
+  ui.layerVis.value = numLayers;
+  ui.layerVal.textContent = numLayers;
+}
+
+
+function finalizeGeometry () {
+  geom.attributes.position.needsUpdate = true;
+  geom.attributes.ratio.needsUpdate    = true;
+  geom.attributes.layerIdx.needsUpdate = true;
+
+  ui.loading.style.display = 'none';
+  revealStarted = true;                  // start wipe-on next frame
+  revealPts     = 0;
+  revealRate = ptsPerLayer * 30;          // ≈ 6 layers-worth per second
+  geom.setDrawRange(0, 0);
+}
+
+/* ------- build pool & compute ------- */
+let nextK = 0, done = 0, curFrac = +ui.fractal.value;
+
+function launch () {
+  if (nextK >= numLayers) return;
+
+  const k = nextK++;
+  const w = new Worker(workerURL);
+
+  w.postMessage({
+    gridSize, k, zMin, dz, zoom, escapeR, maxIter, dx, dy,
+    fractalType: curFrac
+  });
+
+  w.onmessage = ({ data: { k, pos, rat } }) => {
+    const p = new Float32Array(pos);
+    const r = new Float32Array(rat);
+
+    const offPts = k * ptsPerLayer;
+    posBuf.set(p, offPts * 3);
+    ratBuf.set(r, offPts);
+    lyrBuf.fill(k / (numLayers - 1), offPts, offPts + ptsPerLayer);
+
+    done++;
+    ui.loading.textContent = `Loading layers: ${done} / ${numLayers}`;
+
+    w.terminate();
+    launch();                             // next slice
+
+    if (done === numLayers) finalizeGeometry();
+  };
+}
+
+function compute () {
+  posBuf.fill(0);
+  ratBuf.fill(0);
+  lyrBuf.fill(0);
+
+  nextK = done = 0;
+  curFrac = +ui.fractal.value;
+
+  geom.setDrawRange(0, 0);
+  ui.loading.style.display = 'block';
+  ui.loading.textContent = `Loading layers: 0 / ${numLayers}`;
+
+  for (let i = 0; i < MAX_WORKERS; i++) launch();
+}
+compute();
+ui.fractal.addEventListener('change', compute);
+
+/* ------- animation loop & resize ------- */
+let last = performance.now();
+(function anim () {
+  requestAnimationFrame(anim);
+
+  const now = performance.now();
+  const dt  = (now - last) / 1000;     // seconds
+  last = now;
+
+  if (revealStarted && revealPts < totalPts) {
+    revealPts = Math.min(totalPts, revealPts + revealRate * dt);
+    geom.setDrawRange(0, revealPts | 0);
+  }
+
+  controls.update();
+  renderer.render(scene, camera);
+}());
+
+addEventListener('resize', () => {
+  camera.aspect = innerWidth / innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+  uniforms.viewport.value.set(innerWidth, innerHeight);
+});
+</script>
+</body>
+</html>
