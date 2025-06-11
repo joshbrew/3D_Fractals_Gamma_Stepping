@@ -10,6 +10,7 @@ Inspired by https://codepen.io/setz/pen/gbpXoqw which uses a funky attractor com
 ![image](https://github.com/user-attachments/assets/a07bc1bd-c68e-4e5a-8223-a90734dde942)
 ![image](https://github.com/user-attachments/assets/93cfd84f-77b0-405b-be9f-30e465bcfe14)
 ![image](https://github.com/user-attachments/assets/40c329eb-3e84-4a3f-8859-35021213d909)
+![image](https://github.com/user-attachments/assets/b086192e-310f-42d8-bd2e-3f35d6bf9ff5)
 ![image](https://github.com/user-attachments/assets/0d55f97f-f66e-49fd-9211-46b17c512b32)
 ![image](https://github.com/user-attachments/assets/cb63cc21-cca4-4171-9b5c-6b08654560aa)
 ![image](https://github.com/user-attachments/assets/837bce1b-a163-4954-82d1-793a58d211d5)
