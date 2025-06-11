@@ -1,335 +1,240 @@
 <!DOCTYPE html>
 <!-- Joshua Brewster – freeware. 3-D Fractal Point Cloud (14 formulas, 8 palettes) -->
 <html lang="en">
-
 <head>
-  <meta charset="UTF-8">
-  <title>3-D Fractal Point Cloud – Full Features</title>
-  <style>
-    :root {
-      --bg: #000;
-      --panel: rgba(0, 0, 0, .78);
-      --border: #555;
-      --gap: .5rem;
-      --txt: #fff;
-      --accent: #0f0;
-      --font: 12px/1.3 "Fira Mono", "Consolas", monospace;
-    }
-
-    * {
-      box-sizing: border-box
-    }
-
-    html,
-    body {
-      height: 100%;
-      margin: 0;
-      background: var(--bg);
-      color: var(--txt);
-      font: var(--font)
-    }
-
-    #ui {
-      position: absolute;
-      top: 10px;
-      left: 10px;
-      z-index: 10;
-      max-height: calc(100% - 20px);
-      width: 260px;
-      overflow: auto;
-      padding-right: .25rem;
-    }
-
-    details {
-      background: var(--panel);
-      border: 1px solid var(--border);
-      border-radius: 6px;
-      padding: .6rem
-    }
-
-    summary {
-      cursor: pointer;
-      font-weight: 700;
-      margin: -.6rem -.6rem .6rem;
-      padding: .6rem
-    }
-
-    label {
-      display: flex;
-      align-items: center;
-      gap: var(--gap);
-      margin: var(--gap) 0
-    }
-
-    label>span {
-      min-width: 3ch;
-      text-align: right
-    }
-
-    select,
-    input[type=number],
-    input[type=range] {
-      flex: 1 1 0;
-      /* fill remaining space but allow shrinking   */
-      width: 100%;
-      /* always respect the label’s width           */
-      min-width: 0;
-      /* *** key line: overrides browser auto-width */
-      background: #111;
-      border: 1px solid var(--border);
-      padding: .1rem .25rem;
-      color: var(--txt);
-      overflow: hidden;
-      /* keeps long option text from stretching UI  */
-      text-overflow: ellipsis;
-      white-space: nowrap;
-    }
-
-    fieldset {
-      border: 1px solid var(--border);
-      padding: .6rem;
-      margin: var(--gap) 0
-    }
-
-    legend {
-      padding: 0 .4rem
-    }
-
-    button {
-      padding: .3rem;
-      margin-top: .4rem;
-      width: 100%;
-      background: #222;
-      border: 1px solid var(--border);
-      color: var(--txt);
-      cursor: pointer
-    }
-
-    button:hover {
-      background: #333
-    }
-
-    hr {
-      border: none;
-      border-top: 1px solid var(--border);
-      margin: var(--gap) 0
-    }
-
-    #loading {
-      position: absolute;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%);
-      background: rgba(0, 0, 0, .85);
-      padding: .7rem 1rem;
-      border-radius: 4px;
-      font-size: 14px;
-      font-weight: 700;
-      color: var(--accent);
-      z-index: 20
-    }
-  </style>
-  <script type="importmap">
+<meta charset="UTF-8">
+<title>3-D Fractal Point Cloud – Full Features</title>
+<style>
+:root{
+  --bg:#000; --panel:rgba(0,0,0,.78); --border:#555; --gap:.5rem;
+  --txt:#fff; --accent:#0f0; --font:12px/1.3 "Fira Mono","Consolas",monospace;
+}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0;background:var(--bg);color:var(--txt);font:var(--font)}
+#ui{
+  position:absolute;top:10px;left:10px;z-index:10;max-height:calc(100% - 20px);
+  width:260px;overflow:auto;padding-right:.25rem;
+}
+details{background:var(--panel);border:1px solid var(--border);border-radius:6px;padding:.6rem}
+summary{cursor:pointer;font-weight:700;margin:-.6rem -.6rem .6rem;padding:.6rem}
+label{display:flex;align-items:center;gap:var(--gap);margin:var(--gap) 0}
+label>span{min-width:3ch;text-align:right}
+select,
+input[type=number],
+input[type=range]{
+  flex:1 1 0;        /* fill remaining space but allow shrinking   */
+  width:100%;        /* always respect the label’s width           */
+  min-width:0;       /* *** key line: overrides browser auto-width */
+  background:#111;
+  border:1px solid var(--border);
+  padding:.1rem .25rem;
+  color:var(--txt);
+  overflow:hidden;   /* keeps long option text from stretching UI  */
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+fieldset{border:1px solid var(--border);padding:.6rem;margin:var(--gap) 0}
+legend{padding:0 .4rem}
+button{padding:.3rem;margin-top:.4rem;width:100%;background:#222;border:1px solid var(--border);color:var(--txt);cursor:pointer}
+button:hover{background:#333}
+hr{border:none;border-top:1px solid var(--border);margin:var(--gap) 0}
+#loading{
+  position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
+  background:rgba(0,0,0,.85);padding:.7rem 1rem;border-radius:4px;
+  font-size:14px;font-weight:700;color:var(--accent);z-index:20
+}
+</style>
+<script type="importmap">
   { "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.152.2/build/three.module.js" } }
 </script>
 </head>
-
+  
 <body>
-  <div id="ui">
-    <details open>
-      <summary>Controls ▾</summary>
+<div id="ui">
+<details open>
+<summary>Controls ▾</summary>
 
-      <!-- Fractal selector (14) -->
-      <label>Fractal Type:
-        <select id="fractalType">
-          <option value="0" selected>Mandelbrot</option>
-          <option value="20">Inverse Mandelbrot (1/z²+c)</option>
-          <option value="3">Perpendicular Mandel</option>
-          <option value="2">Burning Ship</option>
-          <option value="21">Burning Ship – Tip Zoom</option>
-          <option value="4">Celtic</option>
-          <option value="5">Buffalo</option>
-          <option value="6">Phoenix (λ ≈ -0.5)</option>
-          <option value="26">Nova fractal</option>
-          <option value="27">Man-o-War</option>
-          <option value="11">Heart</option>
-          <option value="9">Cosine</option>
-          <option value="10">Sine</option>
-          <option value="12">Perpendicular Buffalo</option>
-          <option value="16">Tangent (tan z + c)</option>
-          <option value="17">Exponential (exp z + c)</option>
-          <option value="1">Tricorn Mandelbrot</option>
-          <option value="13">Spiral Mandelbrot</option>
-          <option value="7">Cubic Multibrot</option>
-          <option value="8">Quartic Multibrot</option>
-          <option value="14">Quintic Multibrot (z⁵ + c)</option>
-          <option value="15">Sextic Multibrot (z⁶ + c)</option>
-          <option value="18">Septic Multibrot (z⁷+c)</option>
-          <option value="19">Octic Multibrot (z⁸+c)</option>
-          <option value="22">Cubic Ship (|z|³ + c)</option>
-          <option value="23">Quartic Ship (|z|⁴ + c)</option>
-          <option value="24">Quintic Ship (|z|⁵ + c)</option>
-          <option value="25">Hexic Ship (|z|⁶ + c)</option>
-        </select>
-      </label>
+  <!-- Fractal selector (14) -->
+  <label>Fractal Type:
+    <select id="fractalType">
+      <option value="0" selected>Mandelbrot</option>
+      <option value="20">Inverse Mandelbrot (1/z²+c)</option>
+      <option value="3">Perpendicular Mandel</option>
+      <option value="2">Burning Ship</option>
+      <option value="21">Burning Ship – Tip Zoom</option>
+      <option value="4">Celtic</option>
+      <option value="5">Buffalo</option>
+      <option value="6">Phoenix (λ ≈ -0.5)</option>
+      <option value="26">Nova fractal</option>
+      <option value="27">Man-o-War</option>
+      <option value="11">Heart</option>
+      <option value="9">Cosine</option>
+      <option value="10">Sine</option>
+      <option value="12">Perpendicular Buffalo</option>
+      <option value="16">Tangent (tan z + c)</option>
+      <option value="17">Exponential (exp z + c)</option>
+      <option value="1">Tricorn Mandelbrot</option>
+      <option value="13">Spiral Mandelbrot</option>
+      <option value="7">Cubic Multibrot</option>
+      <option value="8">Quartic Multibrot</option>
+      <option value="14">Quintic Multibrot (z⁵ + c)</option>
+      <option value="15">Sextic Multibrot (z⁶ + c)</option>
+      <option value="18">Septic Multibrot (z⁷+c)</option> 
+      <option value="19">Octic Multibrot (z⁸+c)</option>  
+      <option value="22">Cubic Ship (|z|³ + c)</option>
+      <option value="23">Quartic Ship (|z|⁴ + c)</option>
+      <option value="24">Quintic Ship (|z|⁵ + c)</option>
+      <option value="25">Hexic Ship (|z|⁶ + c)</option>
+    </select>
+  </label>
 
-      <!-- Color schemes (same 8) -->
-      <label>Color Scheme:
-        <select id="colorScheme">
-          <option value="0">Violet-Cyan-White</option>
-          <option value="1">Fire</option>
-          <option value="2">Ice</option>
-          <option value="3">Sunset</option>
-          <option value="4">Forest</option>
-          <option value="5">Neon</option>
-          <option value="6">Grayscale</option>
-          <option value="7">Inferno</option>
-          <option value="8">Rainbow 360 °</option>
-          <option value="9">Rainbow 720 °</option>
-          <option value="10">Pastel Loop</option>
-          <option value="11">Viridis-ish</option>
-          <option value="12">Magma</option>
-          <option value="13">Plasma</option>
-          <option value="14">Cividis</option>
-          <option value="15">Ocean</option>
-          <option value="16">Midnight Blue</option>
-          <option value="17">Cool-Warm Diverge</option>
-        </select>
-      </label>
+  <!-- Color schemes (same 8) -->
+  <label>Color Scheme:
+    <select id="colorScheme">
+      <option value="0">Violet-Cyan-White</option>
+      <option value="1">Fire</option>
+      <option value="2">Ice</option>
+      <option value="3">Sunset</option>
+      <option value="4">Forest</option>
+      <option value="5">Neon</option>
+      <option value="6">Grayscale</option>
+      <option value="7">Inferno</option>
+      <option value="8">Rainbow 360 °</option>
+      <option value="9">Rainbow 720 °</option>
+      <option value="10">Pastel Loop</option>
+      <option value="11">Viridis-ish</option>
+      <option value="12">Magma</option>
+      <option value="13">Plasma</option>
+      <option value="14">Cividis</option>
+      <option value="15">Ocean</option>
+      <option value="16">Midnight Blue</option>
+      <option value="17">Cool-Warm Diverge</option>
+    </select>
+  </label>
 
-      <!-- existing UI trimmed for brevity: alpha, thresholds, clip … -->
-      <label>Alpha Mode:
-        <select id="alphaMode">
-          <option value="0">Solid</option>
-          <option value="1" selected>Fade In</option>
-          <option value="2">Inverse</option>
-        </select></label>
-      <label>Threshold Basis:
-        <select id="thresholdBasis">
-          <option value="0">Escape Ratio</option>
-          <option value="1">Layer Index</option>
-        </select></label>
-      <label>Low α Threshold:<input id="lowThresh" type="range" min="0" max="1" step="0.01" value="0.20"><span
-          id="lowVal">0.20</span></label>
-      <label>High α Threshold:<input id="highThresh" type="range" min="0" max="1" step="0.01" value="1"><span
-          id="highVal">1.00</span></label>
-      <hr>
-      <label>Clip X ≤<input id="clipX" type="range" min="-2" max="2" step="0.01" value="2"><span
-          id="clipXVal">2.00</span></label>
-      <label>Clip Y ≤<input id="clipY" type="range" min="-2" max="2" step="0.01" value="2"><span
-          id="clipYVal">2.00</span></label>
-      <label>Clip Z ≤<input id="clipZ" type="range" min="0.5" max="2" step="0.01" value="2"><span
-          id="clipZVal">2.00</span></label>
+  <!-- existing UI trimmed for brevity: alpha, thresholds, clip … -->
+  <label>Alpha Mode:
+    <select id="alphaMode"><option value="0">Solid</option>
+      <option value="1" selected>Fade In</option><option value="2">Inverse</option></select></label>
+  <label>Threshold Basis:
+    <select id="thresholdBasis"><option value="0">Escape Ratio</option><option value="1">Layer Index</option></select></label>
+  <label>Low α Threshold:<input id="lowThresh" type="range" min="0" max="1" step="0.01" value="0.20"><span id="lowVal">0.20</span></label>
+  <label>High α Threshold:<input id="highThresh" type="range" min="0" max="1" step="0.01" value="1"><span id="highVal">1.00</span></label>
+  <hr>
+  <label>Clip X ≤<input id="clipX" type="range" min="-2" max="2" step="0.01" value="2"><span id="clipXVal">2.00</span></label>
+  <label>Clip Y ≤<input id="clipY" type="range" min="-2" max="2" step="0.01" value="2"><span id="clipYVal">2.00</span></label>
+  <label>Clip Z ≤<input id="clipZ" type="range" min="0.5" max="2" step="0.01" value="2"><span id="clipZVal">2.00</span></label>
+  
+  <label>Visible Layers:<input id="layerVis" type="range"><span id="layerVal"></span></label>
+  <label>Point Size ×:<input id="ptSize" type="range" min="0.2" max="4" step="0.05" value="1"><span id="ptVal">1.00</span></label>
+   <label>Z Spacing ×:<input id="zScale" type="range" min="0.1" max="10" step="0.1" value="1"><span id="zVal">1.00</span></label>
+  <hr>
 
-      <label>Visible Layers:<input id="layerVis" type="range"><span id="layerVal"></span></label>
-      <label>Point Size ×:<input id="ptSize" type="range" min="0.2" max="4" step="0.05" value="1"><span
-          id="ptVal">1.00</span></label>
-      <label>Z Spacing ×:<input id="zScale" type="range" min="0.1" max="10" step="0.1" value="1"><span
-          id="zVal">1.00</span></label>
-      <hr>
+  <fieldset style="border:1px solid #555;padding:6px">
+    <legend>Render Parameters</legend>
+    <label>gridSize (px):<input id="pGrid" type="number" min="100" max="1200" step="50" value="800"></label>
+    <label>zMin:<input id="pZmin" type="number" step="0.01" value="0"></label>
+    <label>zMax:<input id="pZmax" type="number" step="0.01" value="2"></label>
+    <label>dz (step):<input id="pDz"   type="number" step="0.001" value="0.02"></label>
+    <label>zoom:<input id="pZoom" type="number" step="0.1" value="4"></label>
+    <label>escapeR:<input id="pEsc"  type="number" step="0.5" value="4"></label>
+    <label>maxIter:<input id="pIter" type="number" min="10" max="1000" step="10" value="100"></label>
+    <label>dx (real):<input id="pDx" type="number" step="0.001" value="0"></label>
+    <label>dy (imag):<input id="pDy" type="number" step="0.001" value="0"></label>
+    <button id="applyParams" style="width:100%;margin-top:6px">Apply</button>
+  </fieldset>
 
-      <fieldset style="border:1px solid #555;padding:6px">
-        <legend>Render Parameters</legend>
-        <label>gridSize (px):<input id="pGrid" type="number" min="100" max="1200" step="50" value="800"></label>
-        <label>zMin:<input id="pZmin" type="number" step="0.01" value="0"></label>
-        <label>zMax:<input id="pZmax" type="number" step="0.01" value="2"></label>
-        <label>dz (step):<input id="pDz" type="number" step="0.001" value="0.02"></label>
-        <label>zoom:<input id="pZoom" type="number" step="0.1" value="4"></label>
-        <label>escapeR:<input id="pEsc" type="number" step="0.5" value="4"></label>
-        <label>maxIter:<input id="pIter" type="number" min="10" max="1000" step="10" value="100"></label>
-        <button id="applyParams" style="width:100%;margin-top:6px">Apply</button>
-      </fieldset>
+</details>
+</div>
+<div id="loading">Loading layers: 0 / 0</div>
 
-    </details>
-  </div>
-  <div id="loading">Loading layers: 0 / 0</div>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'https://cdn.jsdelivr.net/npm/three@0.152.2/examples/jsm/controls/OrbitControls.js';
+ // import { PointerLockControls } from 'https://cdn.jsdelivr.net/npm/three@0.152.2//examples/jsm/controls/PointerLockControls.js';
+/* ------- constants (unchanged) ------- */
+let gridSize=800,zMin=0,zMax=2,dz=.02,numLayers=Math.round((zMax-zMin)/dz)+1, dx=0, dy=0;
+let ptsPerLayer=gridSize*gridSize,zoom=4,escapeR=4,maxIter=100;
+let MAX_WORKERS=Math.min(navigator.hardwareConcurrency||4,8);
+    
+let totalPts=ptsPerLayer*numLayers;                  // initialise count s
+/* ------- UI refs ------- */
+const $ = id => document.getElementById(id);
 
-  <script type="module">
-    import * as THREE from 'three';
-    import { OrbitControls } from 'https://cdn.jsdelivr.net/npm/three@0.152.2/examples/jsm/controls/OrbitControls.js';
-    // import { PointerLockControls } from 'https://cdn.jsdelivr.net/npm/three@0.152.2//examples/jsm/controls/PointerLockControls.js';
-    /* ------- constants (unchanged) ------- */
-    let gridSize = 800, zMin = 0, zMax = 2, dz = .02, numLayers = Math.round((zMax - zMin) / dz) + 1;
-    let ptsPerLayer = gridSize * gridSize, zoom = 4, escapeR = 4, maxIter = 100;
-    let MAX_WORKERS = Math.min(navigator.hardwareConcurrency || 4, 8);
+/* raw elements ---------------------------------------------------------- */
+const controlMode = $('controlMode');
+const fractalType     = $('fractalType');
+const colorScheme     = $('colorScheme');
+const alphaMode       = $('alphaMode');
+const thresholdBasis  = $('thresholdBasis');
+const lowThresh       = $('lowThresh');
+const highThresh      = $('highThresh');
+const lowVal          = $('lowVal');
+const highVal         = $('highVal');
+const clipX           = $('clipX');
+const clipY           = $('clipY');
+const clipZ           = $('clipZ');
+const clipXVal        = $('clipXVal');
+const clipYVal        = $('clipYVal');
+const clipZVal        = $('clipZVal');
+const layerVis        = $('layerVis');
+const layerVal        = $('layerVal');
+const ptSize          = $('ptSize');
+const zScale  = $('zScale'),  zVal   = $('zVal');
+const ptVal           = $('ptVal');
+const loading         = $('loading');
+const pGrid           = $('pGrid');
+const pZmin           = $('pZmin');
+const pZmax           = $('pZmax');
+const pDz             = $('pDz');
+const pZoom           = $('pZoom');
+const pEsc            = $('pEsc');
+const pIter           = $('pIter');
+const pDx   = $('pDx');
+const pDy   = $('pDy');
+const applyParams     = $('applyParams');
 
-    let totalPts = ptsPerLayer * numLayers;                  // initialise count s
-    /* ------- UI refs ------- */
-    const $ = id => document.getElementById(id);
+/* keep the object exactly as you already had it ------------------------- */
+const ui = {
+  fractal: fractalType, scheme: colorScheme, alpha: alphaMode, basis: thresholdBasis,
+  low: lowThresh, high: highThresh, lowVal, highVal,
+  clipX, clipY, clipZ, clipXVal, clipYVal, clipZVal,
+  layerVis, layerVal, ptSize, ptVal, loading, pDx, pDy,
+  pGrid, pZmin, pZmax, pDz, pZoom, pEsc, pIter, apply: applyParams
+};
+/* ------- THREE setup (identical) ------- */
+let scene=new THREE.Scene();
+let camera=new THREE.PerspectiveCamera(60,innerWidth/innerHeight,.1,1000);
+camera.position.set(0,-zoom*1.5,zoom);
+let renderer=new THREE.WebGLRenderer({antialias:false});
+renderer.setSize(innerWidth,innerHeight);
+renderer.getContext().disable(renderer.getContext().CULL_FACE);
+document.body.appendChild(renderer.domElement);
+let controls=new OrbitControls(camera,renderer.domElement);controls.enableDamping=true;
 
-    /* raw elements ---------------------------------------------------------- */
-    const controlMode = $('controlMode');
-    const fractalType = $('fractalType');
-    const colorScheme = $('colorScheme');
-    const alphaMode = $('alphaMode');
-    const thresholdBasis = $('thresholdBasis');
-    const lowThresh = $('lowThresh');
-    const highThresh = $('highThresh');
-    const lowVal = $('lowVal');
-    const highVal = $('highVal');
-    const clipX = $('clipX');
-    const clipY = $('clipY');
-    const clipZ = $('clipZ');
-    const clipXVal = $('clipXVal');
-    const clipYVal = $('clipYVal');
-    const clipZVal = $('clipZVal');
-    const layerVis = $('layerVis');
-    const layerVal = $('layerVal');
-    const ptSize = $('ptSize');
-    const zScale = $('zScale'), zVal = $('zVal');
-    const ptVal = $('ptVal');
-    const loading = $('loading');
-    const pGrid = $('pGrid');
-    const pZmin = $('pZmin');
-    const pZmax = $('pZmax');
-    const pDz = $('pDz');
-    const pZoom = $('pZoom');
-    const pEsc = $('pEsc');
-    const pIter = $('pIter');
-    const applyParams = $('applyParams');
+/* ------- geometry buffers ------- */
+let posBuf=new Float32Array(totalPts*3),ratBuf=new Float32Array(totalPts),lyrBuf=new Float32Array(totalPts);
+let geom=new THREE.BufferGeometry();
+geom.setAttribute('position',new THREE.BufferAttribute(posBuf,3));
+geom.setAttribute('ratio',new THREE.BufferAttribute(ratBuf,1));
+geom.setAttribute('layerIdx',new THREE.BufferAttribute(lyrBuf,1));
+geom.setDrawRange(0,0);
 
-    /* keep the object exactly as you already had it ------------------------- */
-    const ui = {
-      fractal: fractalType, scheme: colorScheme, alpha: alphaMode, basis: thresholdBasis,
-      low: lowThresh, high: highThresh, lowVal, highVal,
-      clipX, clipY, clipZ, clipXVal, clipYVal, clipZVal,
-      layerVis, layerVal, ptSize, ptVal, loading,
-      pGrid, pZmin, pZmax, pDz, pZoom, pEsc, pIter, apply: applyParams
-    };
-    /* ------- THREE setup (identical) ------- */
-    let scene = new THREE.Scene();
-    let camera = new THREE.PerspectiveCamera(60, innerWidth / innerHeight, .1, 1000);
-    camera.position.set(0, -zoom * 1.5, zoom);
-    let renderer = new THREE.WebGLRenderer({ antialias: false });
-    renderer.setSize(innerWidth, innerHeight);
-    renderer.getContext().disable(renderer.getContext().CULL_FACE);
-    document.body.appendChild(renderer.domElement);
-    let controls = new OrbitControls(camera, renderer.domElement); controls.enableDamping = true;
+/* ------- uniforms & shaders  – same as before  ------- */
+const uniforms = {
+  lowT :{value:+ui.low.value},   highT:{value:+ui.high.value},
+  alphaMode:{value:+ui.alpha.value},   basis:{value:+ui.basis.value},
+  scheme:{value:+ui.scheme.value},
+  clipX:{value:+ui.clipX.value}, clipY:{value:+ui.clipY.value}, clipZ:{value:+ui.clipZ.value},
+  worldCell:{value:zoom/(gridSize-1)},
+  pointScale:{value:+ui.ptSize.value},
+  zGap      :{value:+zScale.value}, 
+  viewport:{value:new THREE.Vector2(innerWidth, innerHeight)}
+};
 
-    /* ------- geometry buffers ------- */
-    let posBuf = new Float32Array(totalPts * 3), ratBuf = new Float32Array(totalPts), lyrBuf = new Float32Array(totalPts);
-    let geom = new THREE.BufferGeometry();
-    geom.setAttribute('position', new THREE.BufferAttribute(posBuf, 3));
-    geom.setAttribute('ratio', new THREE.BufferAttribute(ratBuf, 1));
-    geom.setAttribute('layerIdx', new THREE.BufferAttribute(lyrBuf, 1));
-    geom.setDrawRange(0, 0);
-
-    /* ------- uniforms & shaders  – same as before  ------- */
-    const uniforms = {
-      lowT: { value: +ui.low.value }, highT: { value: +ui.high.value },
-      alphaMode: { value: +ui.alpha.value }, basis: { value: +ui.basis.value },
-      scheme: { value: +ui.scheme.value },
-      clipX: { value: +ui.clipX.value }, clipY: { value: +ui.clipY.value }, clipZ: { value: +ui.clipZ.value },
-      worldCell: { value: zoom / (gridSize - 1) },
-      pointScale: { value: +ui.ptSize.value },
-      zGap: { value: +zScale.value },
-      viewport: { value: new THREE.Vector2(innerWidth, innerHeight) }
-    };
-
-    const mat = new THREE.ShaderMaterial({
-      transparent: true, depthTest: true, depthWrite: true,
-      blending: THREE.NormalBlending, uniforms,
-      vertexShader:/* glsl */`
+const mat=new THREE.ShaderMaterial({transparent:true,depthTest:true,depthWrite:true,
+  blending:THREE.NormalBlending,uniforms,
+   vertexShader:/* glsl */`
 precision highp float;
 attribute float ratio, layerIdx;
 varying   float vR, vL;
@@ -350,7 +255,7 @@ void main () {
                      projectionMatrix[1][1] * viewport.y / d);
   gl_Position = projectionMatrix * mv;
 }`,
-      fragmentShader: /* glsl */`
+  fragmentShader: /* glsl */`
 precision highp float;
 
 varying vec3  vW;
@@ -485,55 +390,56 @@ void main () {
       vec3 col = hsl2rgb(vec3(H, 1.0, L));
       gl_FragColor = vec4(col, a);
 }`
-    });
-    let points = new THREE.Points(geom, mat);
-    points.frustumCulled = false;          // keep everything visible for now
-    scene.add(points);
+});
+let points = new THREE.Points(geom, mat);
+points.frustumCulled = false;          // keep everything visible for now
+scene.add(points);
 
-    /* ------- UI → uniforms ------- */
-    function upd() {
-      uniforms.lowT.value = +ui.low.value; ui.lowVal.textContent = (+ui.low.value).toFixed(2);
-      uniforms.highT.value = +ui.high.value; ui.highVal.textContent = (+ui.high.value).toFixed(2);
-      uniforms.alphaMode.value = +ui.alpha.value;
-      uniforms.basis.value = +ui.basis.value;
-      uniforms.scheme.value = +ui.scheme.value;
+/* ------- UI → uniforms ------- */
+function upd(){
+  uniforms.lowT.value  = +ui.low.value;   ui.lowVal.textContent =(+ui.low.value).toFixed(2);
+  uniforms.highT.value = +ui.high.value;  ui.highVal.textContent=(+ui.high.value).toFixed(2);
+  uniforms.alphaMode.value = +ui.alpha.value;
+  uniforms.basis.value     = +ui.basis.value;
+  uniforms.scheme.value    = +ui.scheme.value;
 
-      uniforms.clipX.value = +ui.clipX.value; ui.clipXVal.textContent = (+ui.clipX.value).toFixed(2);
-      uniforms.clipY.value = +ui.clipY.value; ui.clipYVal.textContent = (+ui.clipY.value).toFixed(2);
-      uniforms.clipZ.value = +ui.clipZ.value; ui.clipZVal.textContent = (+ui.clipZ.value).toFixed(2);
-      uniforms.zGap.value = +zScale.value; zVal.textContent = (+zScale.value).toFixed(2);
-      uniforms.pointScale.value = +ui.ptSize.value; ui.ptVal.textContent = (+ui.ptSize.value).toFixed(2);
-    }
-    [ui.low, ui.high, ui.alpha, ui.basis, ui.scheme,
-    ui.clipX, ui.clipY, ui.clipZ,
-    ui.ptSize, zScale].forEach(e => e.addEventListener('input', upd));
-    upd();
+  uniforms.clipX.value = +ui.clipX.value; ui.clipXVal.textContent=(+ui.clipX.value).toFixed(2);
+  uniforms.clipY.value = +ui.clipY.value; ui.clipYVal.textContent=(+ui.clipY.value).toFixed(2);
+  uniforms.clipZ.value = +ui.clipZ.value; ui.clipZVal.textContent=(+ui.clipZ.value).toFixed(2);
+uniforms.zGap.value       = +zScale.value; zVal.textContent   = (+zScale.value).toFixed(2);
+  uniforms.pointScale.value= +ui.ptSize.value; ui.ptVal.textContent=(+ui.ptSize.value).toFixed(2);
+}
+[ui.low, ui.high, ui.alpha, ui.basis, ui.scheme,
+ ui.clipX, ui.clipY, ui.clipZ,
+ ui.ptSize, zScale].forEach(e=>e.addEventListener('input', upd));
+upd();
 
-    ui.layerVis.addEventListener('input', () => setVisibleLayers(+ui.layerVis.value));
-    function setVisibleLayers(nLayers) {
-      const count = Math.max(1, nLayers | 0);
-      geom.setDrawRange(0, count * ptsPerLayer);
-      ui.layerVal.textContent = count.toString();
-    }
+  ui.layerVis.addEventListener('input', ()=> setVisibleLayers(+ui.layerVis.value));
+function setVisibleLayers(nLayers){
+  const count = Math.max(1, nLayers|0);
+  geom.setDrawRange(0, count * ptsPerLayer);
+  ui.layerVal.textContent = count.toString();
+}
+  
+  /* ───── render-parameter “Apply” button ───── */
+ui.apply.addEventListener('click', ()=>{
+  gridSize = +ui.pGrid.value|0;
+  zMin     = +ui.pZmin.value;
+  zMax     = +ui.pZmax.value;
+  dz       = +ui.pDz.value;
+  zoom     = +ui.pZoom.value;
+  escapeR  = +ui.pEsc.value;
+  maxIter  = +ui.pIter.value;
+  dx       = +ui.pDx.value;
+  dy       = +ui.pDy.value;
+  camera.position.set(0, -zoom*1.5, zoom);
+  rebuildScene();
+});
 
-    /* ───── render-parameter “Apply” button ───── */
-    ui.apply.addEventListener('click', () => {
-      gridSize = +ui.pGrid.value | 0;
-      zMin = +ui.pZmin.value;
-      zMax = +ui.pZmax.value;
-      dz = +ui.pDz.value;
-      zoom = +ui.pZoom.value;
-      escapeR = +ui.pEsc.value;
-      maxIter = +ui.pIter.value;
-      camera.position.set(0, -zoom * 1.5, zoom);
-      rebuildScene();
-    });
-
-
-    /* ---------- Worker code (14 formulas) ---------- */
-    const workerSrc = `
-
-  /* ---------- Burning-Ship Multibrot helpers ---------- */
+  
+/* ---------- Worker code (14 formulas) ---------- */
+const workerSrc = `
+/* ---------- Burning-Ship Multibrot helpers ---------- */
 function shipPower(ax, ay, p){           // |z|^p in polar coords
   // r = sqrt(ax²+ay²)  ;  θ = atan2(ay, ax)
   const r2 = ax*ax + ay*ay;
@@ -548,7 +454,7 @@ const ROT45X =  0.7071067811865476;   //  cos 45°
 const ROT45Y = -0.7071067811865476;   // -sin 45°
 
 self.onmessage = e => {
-  const { gridSize, k, zMin, dz, zoom, escapeR, maxIter, fractalType } = e.data;
+  const { gridSize, k, zMin, dz, zoom, escapeR, maxIter, fractalType, dx = 0, dy = 0 } = e.data;
   const N   = gridSize * gridSize;
   const pos = new Float32Array(N * 3);
   const rat = new Float32Array(N);
@@ -558,9 +464,9 @@ self.onmessage = e => {
 
 
   for (let i = 0; i < gridSize; i++) {
-    const x0 = (i / (gridSize - 1) - 0.5) * zoom;
+    const x0 = (i / (gridSize - 1) - 0.5) * zoom + dx;
     for (let j = 0; j < gridSize; j++) {
-      const y0 = (j / (gridSize - 1) - 0.5) * zoom;
+      const y0 = (j / (gridSize - 1) - 0.5) * zoom + dy;
 
       /* z, previous-z (for Phoenix) */
       let qx = 0, qy = 0, px = 0, py = 0;
@@ -646,9 +552,9 @@ self.onmessage = e => {
             ny = -2*a*qy                 + y0*s;
             break;
 
-          /* -------- Spiral Mandelbrot (simple quadratic with a twist) ----------------- */
-            case 13: {                         
-              const THETA   = 0.35+2*gamma;            // rad ~ 20°  (change for more/less twist)
+           /* -------- Spiral Mandelbrot (simple quadratic with a twist) ----------------- */
+           case 13: {                         
+              const THETA   = 0.35+2*gamma;            // per-layer twist
               const wRe = Math.cos(THETA);
               const wIm = Math.sin(THETA);
 
@@ -663,27 +569,27 @@ self.onmessage = e => {
               nx = tx + x0*s;
               ny = ty + y0*s;
               break;
-            }
+           }
             
-            case 14: {                        // Quintic Multibrot  (z^5 + c)
+           case 14: {                        // Quintic Multibrot  (z^5 + c)
               const r2    = qx*qx + qy*qy;
               const theta = Math.atan2(qy, qx);
               const r5    = Math.pow(r2, 2.5);           // r^(5/2)
               nx = r5 * Math.cos(5*theta) + x0*s;
               ny = r5 * Math.sin(5*theta) + y0*s;
               break;
-            }
+           }
 
-            case 15: {                        // Sextic Multibrot   (z^6 + c)
+           case 15: {                        // Sextic Multibrot   (z^6 + c)
               const r2    = qx*qx + qy*qy;
               const theta = Math.atan2(qy, qx);
               const r6    = r2 * r2 * r2;                   // r^3, then squared → r^6
               nx = r6 * Math.cos(6*theta) + x0*s;
               ny = r6 * Math.sin(6*theta) + y0*s;
               break;
-            }
+           }
 
-            case 16: {                        // Tangent fractal    (tan z + c)
+           case 16: {                        // Tangent fractal    (tan z + c)
               // tan(x+iy) = (sin2x + i sinh2y) / (cos2x + cosh2y)
               const sin2x = Math.sin(2*qx);
               const sinh2y= Math.sinh(2*qy);
@@ -691,14 +597,14 @@ self.onmessage = e => {
               nx = sin2x / denom + x0*s;
               ny = sinh2y/ denom + y0*s;
               break;
-            }
+           }
 
-            case 17: {                        // Exponential fractal (exp z + c)
+           case 17: {                        // Exponential fractal (exp z + c)
               const ex = Math.exp(qx);
               nx = ex * Math.cos(qy) + x0*s;
               ny = ex * Math.sin(qy) + y0*s;
               break;
-            }
+           }
             
           case 18: {                      // Septic Multibrot (z^7 + c)
             const r2    = qx*qx + qy*qy;
@@ -772,7 +678,6 @@ self.onmessage = e => {
           break;
         }
         
-        
         /* -------- Nova fractal (Newton method blend) -------------------------------- */
         case 26: {                                // z − (z³ − 1)/(3 z²) + c
           /* z² */
@@ -831,144 +736,143 @@ self.onmessage = e => {
                    [pos.buffer, rat.buffer]);
 };
 `;
-    const workerURL = URL.createObjectURL(new Blob([workerSrc], { type: 'application/javascript' }));
+const workerURL=URL.createObjectURL(new Blob([workerSrc],{type:'application/javascript'}));
+
+  
+/* ───── build / rebuild helpers ───── */
+
+function buildGeometry () {
+  recalcDerived();
+
+  posBuf = new Float32Array(totalPts * 3);
+  ratBuf = new Float32Array(totalPts);
+  lyrBuf = new Float32Array(totalPts);
+
+  geom = new THREE.BufferGeometry();
+  geom.setAttribute('position', new THREE.BufferAttribute(posBuf, 3));
+  geom.setAttribute('ratio',    new THREE.BufferAttribute(ratBuf, 1));
+  geom.setAttribute('layerIdx', new THREE.BufferAttribute(lyrBuf, 1));
+  geom.setDrawRange(0, 0);               // invisible until we animate
+
+  points = new THREE.Points(geom, mat);
+  points.frustumCulled = false;
+}
+
+function rebuildScene () {
+  scene.remove(points);
+  mat.dispose();
+  geom.dispose();
+
+  buildGeometry();
+  scene.add(points);
+
+  uniforms.worldCell.value = zoom / (gridSize - 1);
+
+  revealStarted = false;
+  revealPts     = 0;
+
+  compute();                              // restart worker pipeline
+}
+
+/* ───── reveal / wipe-on state ───── */
+let revealStarted = false;
+let revealPts     = 0;let revealRate=0;                 // points-per-second; set later
+function recalcDerived () {
+  numLayers   = Math.round((zMax - zMin) / dz) + 1;
+  ptsPerLayer = gridSize * gridSize;
+  totalPts    = ptsPerLayer * numLayers;
+  ui.layerVis.max = numLayers;
+  ui.layerVis.value = numLayers;
+  ui.layerVal.textContent = numLayers;
+}
 
 
-    /* ───── build / rebuild helpers ───── */
+function finalizeGeometry () {
+  geom.attributes.position.needsUpdate = true;
+  geom.attributes.ratio.needsUpdate    = true;
+  geom.attributes.layerIdx.needsUpdate = true;
 
-    function buildGeometry() {
-      recalcDerived();
+  ui.loading.style.display = 'none';
+  revealStarted = true;                  // start wipe-on next frame
+  revealPts     = 0;
+  revealRate = ptsPerLayer * 30;          // ≈ 6 layers-worth per second
+  geom.setDrawRange(0, 0);
+}
 
-      posBuf = new Float32Array(totalPts * 3);
-      ratBuf = new Float32Array(totalPts);
-      lyrBuf = new Float32Array(totalPts);
+/* ------- build pool & compute ------- */
+let nextK = 0, done = 0, curFrac = +ui.fractal.value;
 
-      geom = new THREE.BufferGeometry();
-      geom.setAttribute('position', new THREE.BufferAttribute(posBuf, 3));
-      geom.setAttribute('ratio', new THREE.BufferAttribute(ratBuf, 1));
-      geom.setAttribute('layerIdx', new THREE.BufferAttribute(lyrBuf, 1));
-      geom.setDrawRange(0, 0);               // invisible until we animate
+function launch () {
+  if (nextK >= numLayers) return;
 
-      points = new THREE.Points(geom, mat);
-      points.frustumCulled = false;
-    }
+  const k = nextK++;
+  const w = new Worker(workerURL);
 
-    function rebuildScene() {
-      scene.remove(points);
-      mat.dispose();
-      geom.dispose();
+  w.postMessage({
+    gridSize, k, zMin, dz, zoom, escapeR, maxIter, dx, dy,
+    fractalType: curFrac
+  });
 
-      buildGeometry();
-      scene.add(points);
+  w.onmessage = ({ data: { k, pos, rat } }) => {
+    const p = new Float32Array(pos);
+    const r = new Float32Array(rat);
 
-      uniforms.worldCell.value = zoom / (gridSize - 1);
+    const offPts = k * ptsPerLayer;
+    posBuf.set(p, offPts * 3);
+    ratBuf.set(r, offPts);
+    lyrBuf.fill(k / (numLayers - 1), offPts, offPts + ptsPerLayer);
 
-      revealStarted = false;
-      revealPts = 0;
+    done++;
+    ui.loading.textContent = `Loading layers: ${done} / ${numLayers}`;
 
-      compute();                              // restart worker pipeline
-    }
+    w.terminate();
+    launch();                             // next slice
 
-    /* ───── reveal / wipe-on state ───── */
-    let revealStarted = false;
-    let revealPts = 0; let revealRate = 0;                 // points-per-second; set later
-    function recalcDerived() {
-      numLayers = Math.round((zMax - zMin) / dz) + 1;
-      ptsPerLayer = gridSize * gridSize;
-      totalPts = ptsPerLayer * numLayers;
-      ui.layerVis.max = numLayers;
-      ui.layerVis.value = numLayers;
-      ui.layerVal.textContent = numLayers;
-    }
+    if (done === numLayers) finalizeGeometry();
+  };
+}
 
+function compute () {
+  posBuf.fill(0);
+  ratBuf.fill(0);
+  lyrBuf.fill(0);
 
-    function finalizeGeometry() {
-      geom.attributes.position.needsUpdate = true;
-      geom.attributes.ratio.needsUpdate = true;
-      geom.attributes.layerIdx.needsUpdate = true;
+  nextK = done = 0;
+  curFrac = +ui.fractal.value;
 
-      ui.loading.style.display = 'none';
-      revealStarted = true;                  // start wipe-on next frame
-      revealPts = 0;
-      revealRate = ptsPerLayer * 30;          // ≈ 6 layers-worth per second
-      geom.setDrawRange(0, 0);
-    }
+  geom.setDrawRange(0, 0);
+  ui.loading.style.display = 'block';
+  ui.loading.textContent = `Loading layers: 0 / ${numLayers}`;
 
-    /* ------- build pool & compute ------- */
-    let nextK = 0, done = 0, curFrac = +ui.fractal.value;
+  for (let i = 0; i < MAX_WORKERS; i++) launch();
+}
+compute();
+ui.fractal.addEventListener('change', compute);
 
-    function launch() {
-      if (nextK >= numLayers) return;
+/* ------- animation loop & resize ------- */
+let last = performance.now();
+(function anim () {
+  requestAnimationFrame(anim);
 
-      const k = nextK++;
-      const w = new Worker(workerURL);
+  const now = performance.now();
+  const dt  = (now - last) / 1000;     // seconds
+  last = now;
 
-      w.postMessage({
-        gridSize, k, zMin, dz, zoom, escapeR, maxIter,
-        fractalType: curFrac
-      });
+  if (revealStarted && revealPts < totalPts) {
+    revealPts = Math.min(totalPts, revealPts + revealRate * dt);
+    geom.setDrawRange(0, revealPts | 0);
+  }
 
-      w.onmessage = ({ data: { k, pos, rat } }) => {
-        const p = new Float32Array(pos);
-        const r = new Float32Array(rat);
+  controls.update();
+  renderer.render(scene, camera);
+}());
 
-        const offPts = k * ptsPerLayer;
-        posBuf.set(p, offPts * 3);
-        ratBuf.set(r, offPts);
-        lyrBuf.fill(k / (numLayers - 1), offPts, offPts + ptsPerLayer);
-
-        done++;
-        ui.loading.textContent = `Loading layers: ${done} / ${numLayers}`;
-
-        w.terminate();
-        launch();                             // next slice
-
-        if (done === numLayers) finalizeGeometry();
-      };
-    }
-
-    function compute() {
-      posBuf.fill(0);
-      ratBuf.fill(0);
-      lyrBuf.fill(0);
-
-      nextK = done = 0;
-      curFrac = +ui.fractal.value;
-
-      geom.setDrawRange(0, 0);
-      ui.loading.style.display = 'block';
-      ui.loading.textContent = `Loading layers: 0 / ${numLayers}`;
-
-      for (let i = 0; i < MAX_WORKERS; i++) launch();
-    }
-    compute();
-    ui.fractal.addEventListener('change', compute);
-
-    /* ------- animation loop & resize ------- */
-    let last = performance.now();
-    (function anim() {
-      requestAnimationFrame(anim);
-
-      const now = performance.now();
-      const dt = (now - last) / 1000;     // seconds
-      last = now;
-
-      if (revealStarted && revealPts < totalPts) {
-        revealPts = Math.min(totalPts, revealPts + revealRate * dt);
-        geom.setDrawRange(0, revealPts | 0);
-      }
-
-      controls.update();
-      renderer.render(scene, camera);
-    }());
-
-    addEventListener('resize', () => {
-      camera.aspect = innerWidth / innerHeight;
-      camera.updateProjectionMatrix();
-      renderer.setSize(innerWidth, innerHeight);
-      uniforms.viewport.value.set(innerWidth, innerHeight);
-    });
-  </script>
+addEventListener('resize', () => {
+  camera.aspect = innerWidth / innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+  uniforms.viewport.value.set(innerWidth, innerHeight);
+});
+</script>
 </body>
-
 </html>
