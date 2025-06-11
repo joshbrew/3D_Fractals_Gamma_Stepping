@@ -1,4 +1,4 @@
-## 3D Mandelbrot visualization
+## 3D Fractal Visualization
 
 Point cloud render while walking gamma to produce each layer. Workers + ThreeJS, not the most efficient but it works pretty well!
 
