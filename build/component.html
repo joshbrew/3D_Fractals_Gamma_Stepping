@@ -120,6 +120,13 @@
             <label>maxIter:<input id="pIter" type="number" min="10" max="1000" step="10" value="100"></label>
             <label>dx (real):<input id="pDx" type="number" step="0.001" value="0"></label>
             <label>dy (imag):<input id="pDy" type="number" step="0.001" value="0"></label>
+            <label>Scale Mode:
+                <select id="scaleMode">
+                    <option value="0">None</option>
+                    <option value="1" selected>Multiply</option>
+                    <option value="2">Divide</option>
+                </select>
+            </label>
             <!--         <label>Julia Mode:
           <input id="pJuliaMode" type="checkbox">
         </label>

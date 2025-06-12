@@ -1,6 +1,8 @@
+//Joshua Brewster - MIT License
+
 import './index.css'
 import html from './component.html'
-import wrkr from './fractal.worker.js'
+import wrkr from './fractals.worker.js'
 
 //component body
 document.head.insertAdjacentHTML('afterbegin', `<title>3-D Fractal Point Cloud</title>`);
@@ -22,7 +24,7 @@ import { PointerLockControls } from 'three/examples/jsm/controls/PointerLockCont
 let gridSize = 800, zMin = 0, zMax = 2, dz = .02, numLayers = Math.round((zMax - zMin) / dz) + 1, dx = 0, dy = 0;
 let ptsPerLayer = gridSize * gridSize, zoom = 4, escapeR = 4, maxIter = 100;
 let MAX_WORKERS = Math.min(navigator.hardwareConcurrency || 4, 8);
-
+let scaleM = 1;
 let totalPts = ptsPerLayer * numLayers;                  // initialise count s
 /* ------- UI refs ------- */
 const $ = id => document.getElementById(id);
@@ -58,18 +60,90 @@ const pEsc = $('pEsc');
 const pIter = $('pIter');
 const pDx = $('pDx');
 const pDy = $('pDy');
+const scaleMode = $('scaleMode');
+const resetAll = $('resetAll');
 const applyParams = $('applyParams');
 
 
+// const pJuliaMode = $('pJuliaMode'),
+//   pJuliaRe = $('pJuliaRe'),
+//   pJuliaIm = $('pJuliaIm');
+/* ------------------------------------------------------------------ *
+ *  save each control’s initial value so we can return to it on Reset *
+ * ------------------------------------------------------------------ */
+const defaults = {
+  /* sliders -------------------------------------------------------- */
+  low: +lowThresh.value,
+  high: +highThresh.value,
+  clipX: +clipX.value, clipY: +clipY.value, clipZ: +clipZ.value,
+  layers: +layerVis.value,
+  ptSize: +ptSize.value,
+  zScale: +zScale.value,
+
+  /* render-parameter <input type="number"> fields ------------------ */
+  grid: +pGrid.value,
+  zMin: +pZmin.value, zMax: +pZmax.value, dz: +pDz.value,
+  zoom: +pZoom.value, escR: +pEsc.value, iter: +pIter.value,
+  dx: +pDx.value, dy: +pDy.value, scaleMode:scaleMode.value,
+  // juliaMode: pJuliaMode.checked,
+  // juliaRe: +pJuliaRe.value,
+  // juliaIm: +pJuliaIm.value
+};
+
+
+/* ================================================================ *
+*  RESET ↩︎  — restores every slider / number box to its default    *
+*  (keeps fractalType, colorScheme, alphaMode & thresholdBasis)    *
+* ================================================================ */
+resetAll.addEventListener('click', () => {
+
+  /* sliders ------------------------------------------------------- */
+  setSlider(lowThresh, defaults.low);
+  setSlider(highThresh, defaults.high);
+  setSlider(clipX, defaults.clipX);
+  setSlider(clipY, defaults.clipY);
+  setSlider(clipZ, defaults.clipZ);
+  setSlider(layerVis, defaults.layers);
+  setSlider(ptSize, defaults.ptSize);
+  setSlider(zScale, defaults.zScale);
+  setVisibleLayers(defaults.layers);      // sync geometry draw-range
+
+  /* numeric render parameters ------------------------------------ */
+  pGrid.value = defaults.grid;
+  pZmin.value = defaults.zMin; pZmax.value = defaults.zMax; pDz.value = defaults.dz;
+  pZoom.value = defaults.zoom; pEsc.value = defaults.escR; pIter.value = defaults.iter;
+  pDx.value = defaults.dx; pDy.value = defaults.dy;
+  scaleMode.value = defaults.scaleMode;
+  // pJuliaMode.checked = defaults.juliaMode;
+  // pJuliaRe.value = defaults.juliaRe;
+  // pJuliaIm.value = defaults.juliaIm;
+  /* update uniforms, ranges, on-screen numbers ------------------- */
+  upd();
+
+  /* rebuild scene with pristine render params -------------------- */
+  gridSize = defaults.grid;
+  zMin = defaults.zMin;
+  zMax = defaults.zMax;
+  dz = defaults.dz;
+  zoom = defaults.zoom;
+  escapeR = defaults.escR;
+  maxIter = defaults.iter;
+  dx = defaults.dx;
+  dy = defaults.dy;
+  camera.position.set(0, -zoom * 1.5, zoom);
+
+  rebuildScene();                // full recompute & redraw
+});
 
 /* keep the object exactly as you already had it ------------------------- */
 const ui = {
   fractal: fractalType, scheme: colorScheme, alpha: alphaMode, basis: thresholdBasis,
   low: lowThresh, high: highThresh, lowVal, highVal,
   clipX, clipY, clipZ, clipXVal, clipYVal, clipZVal,
-  layerVis, layerVal, ptSize, ptVal, loading, pDx, pDy,
+  layerVis, layerVal, ptSize, ptVal, loading, pDx, pDy, scaleMode,
   pGrid, pZmin, pZmax, pDz, pZoom, pEsc, pIter, apply: applyParams
 };
+
 /* ------- THREE setup (identical) ------- */
 let scene = new THREE.Scene();
 let camera = new THREE.PerspectiveCamera(60, innerWidth / innerHeight, .1, 1000);
@@ -307,6 +381,7 @@ ui.apply.addEventListener('click', () => {
   dx = +ui.pDx.value;
   dy = +ui.pDy.value;
   camera.position.set(0, -zoom * 1.5, zoom);
+  scaleM = +ui.scaleMode.value;
   rebuildScene();
 });
 
@@ -514,7 +589,7 @@ function launch() {
 
   w.postMessage({
     gridSize, k, zMin, dz, zoom, escapeR, maxIter, dx, dy,
-    fractalType: curFrac
+    fractalType: curFrac, scaleMode: scaleM
   });
 
   w.onmessage = ({ data: { k, pos, rat } }) => {
