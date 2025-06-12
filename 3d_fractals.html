@@ -231,13 +231,19 @@
         <select id="fractalType">
           <option value="0" selected>Mandelbrot</option>
           <option value="20">Inverse Mandelbrot (1/z²+c)</option>
+          <option value="37">Inverse Tricorn (1/conj(z)² + c)</option>
           <option value="3">Perpendicular Mandel</option>
           <option value="2">Burning Ship</option>
           <option value="21">Burning Ship – Tip Zoom</option>
           <option value="4">Celtic</option>
           <option value="5">Buffalo</option>
           <option value="6">Phoenix (λ ≈ -0.5)</option>
-          <option value="26">Nova fractal</option>
+          <option value="41">Nova Mandelbrot (z³ − 1, z₀ = 0)</option>
+          <option value="43">Nova 2</option>
+          <option value="26">Tri-Nova</option>
+          <option value="44">Quad-Nova</option>
+          <option value="40">Inverse Tri-Nova</option>
+          <option value="42">Inverse Tri-Nova 2</option>
           <option value="27">Man-o-War</option>
           <option value="11">Heart</option>
           <option value="9">Cosine</option>
@@ -257,6 +263,17 @@
           <option value="23">Quartic Ship (|z|⁴ + c)</option>
           <option value="24">Quintic Ship (|z|⁵ + c)</option>
           <option value="25">Hexic Ship (|z|⁶ + c)</option>
+          <option value="30">Inverse Cubic (1 / z³ + c)</option>
+          <option value="31">Inverse Quartic (1 / z⁴ + c)</option>
+          <option value="32">Inverse Quintic (1 / z⁵ + c)</option>
+          <option value="33">Inverse Sextic (1 / z⁶ + c)</option>
+          <option value="34">Inverse Septic (1 / z⁷ + c)</option>
+          <option value="35">Inverse Octic (1 / z⁸ + c)</option>
+          <option value="36">Inverse Burning Ship (1/|z|² + c)</option>
+          <option value="38">Inverse Celtic (|1/z|² + c)</option>
+          <option value="39">Inverse Phoenix (1/z² – 0.5·z<sub>n–1</sub> + c)</option>
+          <option value="45">Quartic Flower-Nova</option>
+          <option value="46">Scatter-Nova</option>
         </select>
       </label>
 
@@ -308,7 +325,8 @@
       <label>Clip Z ≤<input id="clipZ" type="range" min="0" max="2" step="0.01" value="2"><span
           id="clipZVal">2.00</span></label>
 
-      <label>Visible Layers:<input id="layerVis" type="range"><span id="layerVal"></span></label>
+      <label>Visible Layers:<input id="layerVis" type="range" min="1" max="101" step="1"><span
+          id="layerVal"></span></label>
       <label>Point Size ×:<input id="ptSize" type="range" min="0.2" max="4" step="0.05" value="1"><span
           id="ptVal">1.00</span></label>
       <label>Z Spacing ×:<input id="zScale" type="range" min="0.1" max="50" step="0.1" value="1"><span
@@ -326,7 +344,19 @@
         <label>maxIter:<input id="pIter" type="number" min="10" max="1000" step="10" value="100"></label>
         <label>dx (real):<input id="pDx" type="number" step="0.001" value="0"></label>
         <label>dy (imag):<input id="pDy" type="number" step="0.001" value="0"></label>
+        <!--         <label>Julia Mode:
+          <input id="pJuliaMode" type="checkbox">
+        </label>
+        <label>Julia Re:
+          <input id="pJuliaRe" type="number" step="0.01" value="0.75">
+        </label>
+        <label>Julia Im:
+          <input id="pJuliaIm" type="number" step="0.01" value="0.00">
+        </label> -->
         <button id="applyParams" style="width:100%;margin-top:6px">Apply</button>
+        <button id="resetAll" style="width:100%;margin-top:4px;background:#550;border-color:#777">
+          Reset defaults
+        </button>
       </fieldset>
 
     </details>
@@ -345,11 +375,11 @@
       <!-- quick keys ------------------------------------------------------->
       <h4 style="margin:.4rem 0 0;">Quick Keys</h4>
       <ul style="margin:.25rem 0 .5rem 1.2rem;padding:0;list-style:square outside;">
-        <li><b>Z / X</b> – Low α threshold (↓ / ↑)</li>
-        <li><b>C / V</b> – High α threshold</li>
+        <li><b>Q / E</b> – Low α threshold (↓ / ↑)</li>
+        <li><b>F / G</b> – High α threshold</li>
         <li><b>B / N</b> – Visible layers</li>
-        <li><b>G / H</b> – Point size</li>
-        <li><b>J / K</b> – Z spacing multiplier</li>
+        <li><b>Z / X</b> – Point size</li>
+        <li><b>N / M</b> – Z-spacing multiplier</li>
       </ul>
 
       <!-- variable meanings ----------------------------------------------->
@@ -432,7 +462,7 @@
     /* ------- constants (unchanged) ------- */
     let gridSize = 800, zMin = 0, zMax = 2, dz = .02, numLayers = Math.round((zMax - zMin) / dz) + 1, dx = 0, dy = 0;
     let ptsPerLayer = gridSize * gridSize, zoom = 4, escapeR = 4, maxIter = 100;
-    let MAX_WORKERS = Math.min(navigator.hardwareConcurrency || 4, 8);
+    let MAX_WORKERS = Math.max(navigator.hardwareConcurrency || 4, 4);
 
     let totalPts = ptsPerLayer * numLayers;                  // initialise count s
     /* ------- UI refs ------- */
@@ -470,7 +500,80 @@
     const pDx = $('pDx');
     const pDy = $('pDy');
     const applyParams = $('applyParams');
+    const resetAll = $('resetAll');
 
+    // const pJuliaMode = $('pJuliaMode'),
+    //   pJuliaRe = $('pJuliaRe'),
+    //   pJuliaIm = $('pJuliaIm');
+    /* ------------------------------------------------------------------ *
+     *  save each control’s initial value so we can return to it on Reset *
+     * ------------------------------------------------------------------ */
+    const defaults = {
+      /* sliders -------------------------------------------------------- */
+      low: +lowThresh.value,
+      high: +highThresh.value,
+      clipX: +clipX.value, clipY: +clipY.value, clipZ: +clipZ.value,
+      layers: +layerVis.value,
+      ptSize: +ptSize.value,
+      zScale: +zScale.value,
+
+      /* render-parameter <input type="number"> fields ------------------ */
+      grid: +pGrid.value,
+      zMin: +pZmin.value, zMax: +pZmax.value, dz: +pDz.value,
+      zoom: +pZoom.value, escR: +pEsc.value, iter: +pIter.value,
+      dx: +pDx.value, dy: +pDy.value,
+      // juliaMode: pJuliaMode.checked,
+      // juliaRe: +pJuliaRe.value,
+      // juliaIm: +pJuliaIm.value
+    };
+
+    function setSlider(sl, v) {
+      sl.value = v;
+      paintRange(sl);
+    }
+
+    /* ================================================================ *
+ *  RESET ↩︎  — restores every slider / number box to its default    *
+ *  (keeps fractalType, colorScheme, alphaMode & thresholdBasis)    *
+ * ================================================================ */
+    resetAll.addEventListener('click', () => {
+
+      /* sliders ------------------------------------------------------- */
+      setSlider(lowThresh, defaults.low);
+      setSlider(highThresh, defaults.high);
+      setSlider(clipX, defaults.clipX);
+      setSlider(clipY, defaults.clipY);
+      setSlider(clipZ, defaults.clipZ);
+      setSlider(layerVis, defaults.layers);
+      setSlider(ptSize, defaults.ptSize);
+      setSlider(zScale, defaults.zScale);
+      setVisibleLayers(defaults.layers);      // sync geometry draw-range
+
+      /* numeric render parameters ------------------------------------ */
+      pGrid.value = defaults.grid;
+      pZmin.value = defaults.zMin; pZmax.value = defaults.zMax; pDz.value = defaults.dz;
+      pZoom.value = defaults.zoom; pEsc.value = defaults.escR; pIter.value = defaults.iter;
+      pDx.value = defaults.dx; pDy.value = defaults.dy;
+      pJuliaMode.checked = defaults.juliaMode;
+      pJuliaRe.value = defaults.juliaRe;
+      pJuliaIm.value = defaults.juliaIm;
+      /* update uniforms, ranges, on-screen numbers ------------------- */
+      upd();
+
+      /* rebuild scene with pristine render params -------------------- */
+      gridSize = defaults.grid;
+      zMin = defaults.zMin;
+      zMax = defaults.zMax;
+      dz = defaults.dz;
+      zoom = defaults.zoom;
+      escapeR = defaults.escR;
+      maxIter = defaults.iter;
+      dx = defaults.dx;
+      dy = defaults.dy;
+      camera.position.set(0, -zoom * 1.5, zoom);
+
+      rebuildScene();                // full recompute & redraw
+    });
 
 
     /* keep the object exactly as you already had it ------------------------- */
@@ -664,7 +767,8 @@ void main () {
         L = 0.25 + 0.55*abs(r-0.5);
 
       /* fallback: old Inferno-style if scheme out of range */
-      }else{
+      }
+      else{
         H = (40.0 + 310.0*pow(r,1.3)) / 360.0;
         L = 0.20 + 0.50*pow(r,0.8);
       }
@@ -696,10 +800,14 @@ void main () {
     upd();
 
     ui.layerVis.addEventListener('input', () => setVisibleLayers(+ui.layerVis.value));
-    function setVisibleLayers(nLayers) {
-      const count = Math.max(1, nLayers | 0);
-      geom.setDrawRange(0, count * ptsPerLayer);
-      ui.layerVal.textContent = count.toString();
+    /* keep slider in-step with geometry draw-range */
+    function setVisibleLayers(n) {
+      const count = Math.max(1, n | 0);          // 1 … numLayers
+
+      geom.setDrawRange(0, count * ptsPerLayer); // show that many layers
+      ui.layerVal.textContent = count;           // numeric label
+      ui.layerVis.value = count;                 // ← sync the slider itself
+      paintRange(ui.layerVis);                   //   and repaint the fill track
     }
 
     /* ───── render-parameter “Apply” button ───── */
@@ -725,31 +833,37 @@ void main () {
 
     /* ─── keyboard shortcuts for five sliders ──────────────────────────── */
     const binds = [
+      /* Low α  – Q / E */
       {
-        inc: 'KeyX', dec: 'KeyZ', el: lowThresh, step: +lowThresh.step || 0.01,
+        inc: 'KeyQ', dec: 'KeyE', el: lowThresh, step: +lowThresh.step || 0.01,
         after: () => { paintRange(lowThresh); upd(); }
       },
 
+      /* High α – G / F */
       {
-        inc: 'KeyV', dec: 'KeyC', el: highThresh, step: +highThresh.step || 0.01,
+        inc: 'KeyG', dec: 'KeyF', el: highThresh, step: +highThresh.step || 0.01,
         after: () => { paintRange(highThresh); upd(); }
       },
 
+      /* Visible layers – V / B   (unique keys now) */
       {
-        inc: 'KeyN', dec: 'KeyB', el: layerVis, step: 1,
+        inc: 'KeyV', dec: 'KeyB', el: layerVis, step: +layerVis.step || 1,
         after: () => { setVisibleLayers(+layerVis.value); paintRange(layerVis); }
       },
 
+      /* Point size – X / Z */
       {
-        inc: 'KeyH', dec: 'KeyG', el: ptSize, step: +ptSize.step || 0.05,
+        inc: 'KeyX', dec: 'KeyZ', el: ptSize, step: +ptSize.step || 0.05,
         after: () => { paintRange(ptSize); upd(); }
       },
 
+      /* Z-spacing – M / N  (unchanged) */
       {
-        inc: 'KeyK', dec: 'KeyJ', el: zScale, step: +zScale.step || 0.1,
+        inc: 'KeyM', dec: 'KeyN', el: zScale, step: +zScale.step || 0.1,
         after: () => { paintRange(zScale); upd(); }
       }
     ];
+
 
     /* ❶  Robust slider update — never lets High ≤ Low  -------------------- */
     function nudgeSlider(sl, delta) {
@@ -852,29 +966,63 @@ function shipPower(ax, ay, p){           // |z|^p in polar coords
            r*Math.sin(th) ];             // Im part
 }
 
+/* ---------- generic inverse-power helper ---------- */
+function invPower(qx, qy, p){
+  /* 1 / (qx + i qy)^p  via polar form */
+  const r2 = qx*qx + qy*qy + 1e-9;        // avoid /0
+  const rp = Math.pow(r2, p * 0.5);       // r^p
+  const th = Math.atan2(qy, qx) * p;      // p·θ
+  const rpInv = 1.0 / rp;                 // 1 / r^p
+  return [ rpInv * Math.cos(th),          // Re
+           -rpInv * Math.sin(th) ];       // Im  (negated ⇒ 1/z^p)
+}
+
+
 const SQRT2_INV = 1/Math.sqrt(2);
 const ROT45X =  0.7071067811865476;   //  cos 45°
 const ROT45Y = -0.7071067811865476;   // -sin 45°
 
 self.onmessage = e => {
-  const { gridSize, k, zMin, dz, zoom, escapeR, maxIter, fractalType, dx = 0, dy = 0 } = e.data;
+  const { gridSize, k, zMin, dz, zoom, escapeR, maxIter, fractalType, dx = 0, dy = 0,
+    juliaMode, juliaRe = 0.75, juliaIm = 0
+  } = e.data;
+  let epsilon = e.data.epsilon || 1e-6;
   const N   = gridSize * gridSize;
   const pos = new Float32Array(N * 3);
   const rat = new Float32Array(N);
-  const gamma = zMin + k * dz;
+  const gamma = zMin + k * dz; //permuation via gamma
+  epsilon *= zoom; //keep it scaling with zoom
 
   let idx = 0;
 
+  const isInv = fractalType >= 30 && fractalType <= 39;   // true for new formulas
+  const invPowerP  = fractalType - 27; 
 
   for (let i = 0; i < gridSize; i++) {
-    const x0 = (i / (gridSize - 1) - 0.5) * zoom + dx;
+    const x0 = juliaMode ? juliaRe : (i / (gridSize - 1) - 0.5) * zoom + dx;
     for (let j = 0; j < gridSize; j++) {
-      const y0 = (j / (gridSize - 1) - 0.5) * zoom + dy;
+      const y0 = juliaMode ? juliaIm : (j / (gridSize - 1) - 0.5) * zoom + dy;
 
-      /* z, previous-z (for Phoenix) */
-      let qx = 0, qy = 0, px = 0, py = 0;
+      // Mandelbrot family starts at 0, inverse family starts at c
+      let qx, qy;
+      if (fractalType === 41) {
+        // Nova‐Mandelbrot starts at z₀ = 1 + 0i
+        qx = 1.0;
+        qy = 0.0;
+      } else if (fractalType >= 30 && fractalType <= 39) {
+        // inverse families start at c
+        qx = x0;
+        qy = y0;
+      } else {
+        // all other Mandelbrot types start at 0
+        qx = 0.0;
+        qy = 0.0;
+      }
+      let px = 0,  py = 0;      // prev-z for Phoenix / Man-o-War
       let iter = 0;
 
+
+      outer:
       while (qx*qx + qy*qy <= escapeR*escapeR && iter < maxIter) {
         const s = 1 + iter * (gamma - 1);      // slice scaling
         const a = Math.abs(qx);
@@ -1028,11 +1176,15 @@ self.onmessage = e => {
           }
 
           case 20: {                      // Inverse Mandelbrot (1/z^2 + c)
-            const r2 = qx*qx + qy*qy + 1e-9;            // avoid /0
-            const denom = r2*r2;                        // (|z|²)² = |z|⁴
-            nx = ( qx*qx - qy*qy)/denom + x0*s;
-            ny = (-2*qx*qy)          /denom + y0*s;
-            break;
+             const r2  = qx*qx + qy*qy + 1e-9;   // avoid /0
+              const inv = 1.0 / (r2*r2);          // 1 / |z|⁴
+
+              // real part is unchanged
+              nx = ( qx*qx - qy*qy) * inv + x0 * s;
+
+              // *** sign is now POSITIVE ***
+              ny = ( 2*qx*qy       ) * inv + y0 * s;
+              break;
           }
           
           case 21: {   // Burning Ship  – deep zoom on the forward tip
@@ -1116,10 +1268,285 @@ self.onmessage = e => {
           px = qx;  py = qy;                       // store prev-z
           break;
         }
+         /*   30 – inv cubic   | 31 – inv quartic | … | 35 – inv octic   */
+        case 30:
+        case 31:
+        case 32:
+        case 33:
+        case 34:
+        case 35: {
+          const p   = invPowerP;                        // 3 … 8
+          const r2  = qx*qx + qy*qy + 1e-12;            // tiny ε avoids /0
+          const rp  = Math.pow(r2, -p * 0.5);           // 1 / r^p
+          const ang = -p * Math.atan2(qy, qx);          // −p·θ   (minus sign = reciprocal)
+          const rx  = rp * Math.cos(ang);
+          const ry  = rp * Math.sin(ang);
+          nx = rx + x0 * s;
+          ny = ry + y0 * s;
+          break;
+        }
+        /* ---------- 36 : Inverse Burning-Ship (reciprocal variant) -------- */
+        case 36: {              //  1 / (|z|²)      + c
+          const a = Math.abs(qx), b = Math.abs(qy);
+          const r2 = qx*qx + qy*qy + 1e-9;          // avoid /0
+          const inv = 1.0 / (r2*r2);                // 1 / |z|⁴
+          nx = ( a*a - b*b) * inv + x0*s;
+          ny = ( 2*a*b      ) * inv + y0*s;
+          break;
+        }
+
+        /* ---------- 37 : Inverse Tricorn ---------------------------------- */
+        case 37: {              //  1 / (conj(z)²)  + c
+          const r2   = qx*qx + qy*qy + 1e-9;
+          const inv  = 1.0 / (r2*r2);
+          nx = ( qx*qx - qy*qy) * inv + x0*s;
+          ny = (-2*qx*qy       ) * inv + y0*s;      // note minus => conjugate
+          break;
+        }
+
+        /* ---------- 38 : Inverse Celtic (uses abs on real part) ------------ */
+        case 38: {
+          const r2  = qx*qx + qy*qy + 1e-9;
+          const inv = 1.0 / (r2*r2);
+          const rx  = Math.abs(qx*qx - qy*qy);
+          nx =  rx            * inv + x0*s;
+          ny = ( 2*qx*qy )    * inv + y0*s;
+          break;
+        }
+
+        /* ---------- 39 : Inverse Phoenix (1/z² – 0.5·prev + c) ------------ */
+        case 39: {
+          const r2  = qx*qx + qy*qy + 1e-9;      // avoid /0
+          const inv = 1.0 / (r2 * r2);           // 1 / |z|⁴
+
+          /* true 1 / z²   (Im part is POSITIVE) */
+          const zx2 = ( qx*qx - qy*qy) * inv;    // Re
+          const zy2 = ( 2.0*qx*qy    ) * inv;    // Im  ← fixed sign
+
+          nx = zx2 + x0*s - 0.5*px;              // Phoenix blend  λ = –0.5
+          ny = zy2 + y0*s - 0.5*py;
+
+          px = qx;                               // save previous-z
+          py = qy;
+          break;
+        }
+        case 40: { //Tri-Nova
+          /* z² */
+          const zx2 = qx*qx - qy*qy,
+                zy2 = 2.0*qx*qy;
+
+          /* z⁴ = (z²)² */
+          const zx4 = zx2*zx2 - zy2*zy2,
+                zy4 = 2.0*zx2*zy2;
+
+          /*  (4/3)·z  −  (1/3)·z⁴  + c  */
+          nx = (1.3333333333333333 * qx) - (0.3333333333333333 * zx4) + x0 * s;
+          ny = (1.3333333333333333 * qy) - (0.3333333333333333 * zy4) + y0 * s;
+          break;
+        }
+        case 41: {
+            // Nova‐Mandelbrot: zₙ₊₁ = zₙ − (zₙ³ − 1)/(3 zₙ²) + c
+
+            // z²
+            const zx2 = qx*qx - qy*qy,
+                  zy2 = 2.0*qx*qy;
+            // z³
+            const zx3 = zx2*qx - zy2*qy,
+                  zy3 = zx2*qy + zy2*qx;
+            // denominator = 3·z²
+            const denx = 3.0*zx2,
+                  deny = 3.0*zy2;
+            const den2 = denx*denx + deny*deny + 1e-9;  // avoid /0
+
+            // numerator = z³ − 1
+            const numx = zx3 - 1.0,
+                  numy = zy3;
+
+            // division (z³−1)/(3 z²)
+            const divx = (numx*denx + numy*deny) / den2;
+            const divy = (numy*denx - numx*deny) / den2;
+
+            // candidate for next z
+            const nx0 = qx - divx + x0*s,
+                  ny0 = qy - divy + y0*s;
+
+            // convergence check: |Δz|² < ε
+            const dx0 = nx0 - qx,
+                  dy0 = ny0 - qy;
+            if (dx0*dx0 + dy0*dy0 < 1e-6) {
+              qx = nx0;
+              qy = ny0;
+              iter++;            // count this final step
+              break outer;       // exit the while early
+            }
+
+            // otherwise accept the step
+            nx = nx0;
+            ny = ny0;
+            break;
+        }
+        case 42: {  // Nova 2
+          // 1) compute 1/z
+          const r2_inv = 1.0 / (qx*qx + qy*qy + 1e-9);
+          const izRe =  qx * r2_inv;
+          const izIm = -qy * r2_inv;
+
+          // 2) build (1/z)^2 and (1/z)^4
+          const zx2 = izRe*izRe - izIm*izIm;
+          const zy2 = 2.0*izRe*izIm;
+          const zx4 = zx2*zx2 - zy2*zy2;
+          const zy4 = 2.0*zx2*zy2;
+
+          // 3) apply forward Quad-Nova step on 1/z:
+          //    f = (4/3)*(1/z) - (1/3)*(1/z)^4 + c*s
+          const fRe = 1.3333333333333333 * izRe
+                    - 0.3333333333333333 * zx4
+                    + x0 * s;
+          const fIm = 1.3333333333333333 * izIm
+                    - 0.3333333333333333 * zy4
+                    + y0 * s;
+
+          // 4) invert back: z_{n+1} = 1 / f
+          const den  = 1.0 / (fRe*fRe + fIm*fIm + 1e-9);
+          nx =  fRe * den;
+          ny = -fIm * den;
+          break;
+        }
         
+        case 43: {  // Nova  2
+          // 1) build z² and z⁴ just like case 40
+          const zx2 = qx*qx - qy*qy;
+          const zy2 = 2.0*qx*qy;
+          const zx4 = zx2*zx2 - zy2*zy2;
+          const zy4 = 2.0*zx2*zy2;
+
+          // 2) do the forward Quad-Nova step f(z) = (4/3)z – (1/3)z⁴ + c·s
+          const fRe = 1.3333333333333333*qx
+                    - 0.3333333333333333*zx4
+                    + x0 * s;
+          const fIm = 1.3333333333333333*qy
+                    - 0.3333333333333333*zy4
+                    + y0 * s;
+
+          // 3) invert that result: z_{n+1} = 1 / f
+          const invR2 = 1.0 / (fRe*fRe + fIm*fIm + 1e-9);
+          nx =  fRe * invR2;
+          ny = -fIm * invR2;
+          break;
+        }
+        
+        case 44: { // Quartic-Nova: Newton iteration for z⁴ – 1 (plus c)
+          // First build z² and z³
+          const zx2 = qx*qx - qy*qy;
+          const zy2 = 2*qx*qy;
+          const zx3 = zx2*qx - zy2*qy;
+          const zy3 = zx2*qy + zy2*qx;
+
+          // Now z⁴ = z³ * z
+          const zx4 = zx3*qx - zy3*qy;
+          const zy4 = zx3*qy + zy3*qx;
+
+          // Newton step: (z⁴ – 1) / (4 z³)
+          const numx = zx4 - 1.0, numy = zy4;
+          const denx = 4.0*(zx2*qx - zy2*qy);
+          const deny = 4.0*(zx2*qy + zy2*qx);
+          const den2 = denx*denx + deny*deny + 1e-9; // avoid /0
+
+          const divx = (numx*denx + numy*deny) / den2;
+          const divy = (numy*denx - numx*deny) / den2;
+
+          // new z = z – (z⁴–1)/(4 z³) + c
+          nx = qx - divx + x0*s;
+          ny = qy - divy + y0*s;
+          break;
+        }
+        case 45: { // Flower Nova
+        // seed z₀ = c
+            if (iter === 0) {
+              qx = x0;
+              qy = y0;
+            }
+
+            // 1) build z²
+            const zx2 = qx*qx - qy*qy;
+            const zy2 = 2.0*qx*qy;
+
+            // 2) build z³ & z⁴
+            const zx3 = zx2*qx - zy2*qy;
+            const zy3 = zx2*qy + zy2*qx;
+            const zx4 = zx3*qx - zy3*qy;
+            const zy4 = zx3*qy + zy3*qx;
+
+            // 3) Newton-style divisor = 4 z³
+            const denx = 4.0*zx3, deny = 4.0*zy3;
+            const den2 = denx*denx + deny*deny + 1e-9;
+
+            // 4) numerator = z⁴ – 1
+            const numx = zx4 - 1.0, numy = zy4;
+
+            // 5) (z⁴–1)/(4z³)
+            const divx = (numx*denx + numy*deny) / den2;
+            const divy = (numy*denx - numx*deny) / den2;
+
+            // 6) forward candidate: zₙ – (z⁴–1)/(4z³) + c·s
+            const fx = qx - divx + x0*s;
+            const fy = qy - divy + y0*s;
+
+            // 7) NEGATE the result
+            nx = -fx;
+            ny = -fy;
+            break;
+        }
+        case 46: {  // Scatter-Nova 
+             // seed z₀ = c exactly once
+          if (iter === 0) {
+            qx = x0;
+            qy = y0;
+          }
+
+          // build z²
+          const zx2 = qx*qx - qy*qy;
+          const zy2 = 2.0*qx*qy;
+
+          // build z³ and z⁴
+          const zx3 = zx2*qx - zy2*qy;
+          const zy3 = zx2*qy + zy2*qx;
+          const zx4 = zx3*qx - zy3*qy;
+          const zy4 = zx3*qy + zy3*qx;
+
+          // denominator = 4·z³
+          const denx = 4.0*zx3, deny = 4.0*zy3;
+          const den2 = denx*denx + deny*deny + 1e-9; // avoid /0
+
+          // numerator = z⁴ – 1
+          const numx = zx4 - 1.0, numy = zy4;
+
+          // (z⁴–1)/(4 z³)
+          const divx = (numx*denx + numy*deny)/den2;
+          const divy = (numy*denx - numx*deny)/den2;
+
+          // forward Newton candidate: z – (z⁴–1)/(4 z³) + c·s
+          const fx = qx - divx + x0*s;
+          const fy = qy - divy + y0*s;
+
+          // **invert** it: zₙ₊₁ = 1 / f
+          const invR2 = 1.0/(fx*fx + fy*fy + 1e-9);
+          nx =  fx * invR2;
+          ny = -fy * invR2;
+          break;
+        }
+     
         default: // Mandelbrot
             nx = qx*qx - qy*qy + x0*s;
             ny = 2*qx*qy       + y0*s;
+        }
+
+        // ─── GENERAL CONVERGENCE TEST ─────────────────────────
+        const dx_ = nx - qx, dy_ = ny - qy;
+        if (dx_*dx_ + dy_*dy_ < epsilon) {
+          qx = nx;  qy = ny;
+          iter++;             // count this final step
+          break outer;        // exit the while on convergence
         }
 
         qx = nx;  qy = ny;
@@ -1185,6 +1612,7 @@ self.onmessage = e => {
       ptsPerLayer = gridSize * gridSize;
       totalPts = ptsPerLayer * numLayers;
       ui.layerVis.max = numLayers;
+      ui.layerVis.min = 1;
       ui.layerVis.value = numLayers;
       ui.layerVal.textContent = numLayers;
     }
@@ -1215,7 +1643,10 @@ self.onmessage = e => {
 
       w.postMessage({
         gridSize, k, zMin, dz, zoom, escapeR, maxIter, dx, dy,
-        fractalType: curFrac
+        fractalType: curFrac,
+        // juliaMode: +pJuliaMode.checked,
+        // juliaRe: +pJuliaRe.value,
+        // juliaIm: +pJuliaIm.value,
       });
 
       w.onmessage = ({ data: { k, pos, rat } }) => {
