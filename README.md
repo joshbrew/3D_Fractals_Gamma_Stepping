@@ -2,7 +2,7 @@
 
 Point cloud fractal renders while using a gamma scale factor each iteration to produce each layer with multiplied real and imaginary coordinates. Workers + ThreeJS, not the most efficient but it works pretty well!
 
-You can play around with nearly 50 different fractals. 
+You can play around with nearly 50 different fractals. You can spend hours and hours finding different things.
 
 ### [Try me](https://codepen.io/mootytootyfrooty/pen/dPoZqpa)
 
