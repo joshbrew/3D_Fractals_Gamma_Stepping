@@ -1,13 +1,18 @@
 import './index.css'
+import html from './component.html'
 import wrkr from './fractal.worker.js'
 
+//component body
+document.head.insertAdjacentHTML('afterbegin', `<title>3-D Fractal Point Cloud</title>`);
+document.body.insertAdjacentHTML('afterbegin', html);
+
 function paintRange(el) {
-    const pct = 100 * (el.value - el.min) / (el.max - el.min);
-    el.style.setProperty('--percent', pct + '%');
-  }
+  const pct = 100 * (el.value - el.min) / (el.max - el.min);
+  el.style.setProperty('--percent', pct + '%');
+}
 document.querySelectorAll('#ui input[type=range]').forEach(slider => {
-paintRange(slider);                    // initial paint
-slider.addEventListener('input', () => paintRange(slider));
+  paintRange(slider);                    // initial paint
+  slider.addEventListener('input', () => paintRange(slider));
 });
 
 import * as THREE from 'three';

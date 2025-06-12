@@ -13,7 +13,7 @@ const config = {
         bundleESM: false, //create esm module js files 
         bundleTypes: false, //create .d.ts files, //you need a .tsconfig for this to work
         bundleNode: false, //create node platform plain js build, specify platform:'node' to do the rest of the files 
-        bundleHTML: false, //wrap the first entry point file as a plain js script in a boilerplate html file, frontend scripts can be run standalone like a .exe! Server serves this as start page if set to true.
+        bundleHTML: true, //wrap the first entry point file as a plain js script in a boilerplate html file, frontend scripts can be run standalone like a .exe! Server serves this as start page if set to true.
         //bundleIIFE:false,   //create an iife build, this is compiled temporarily to create the types files and only saved with bundleIIFE:true
         //bundleCommonJS:false, //cjs format outputted as .cjs
         minify: true,
