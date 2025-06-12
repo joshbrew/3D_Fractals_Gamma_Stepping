@@ -2,6 +2,8 @@
 
 Point cloud render while walking gamma to produce each layer. Workers + ThreeJS, not the most efficient but it works pretty well!
 
+You can play around with nearly 50 different fractals. 
+
 ### [Try me](https://codepen.io/mootytootyfrooty/pen/dPoZqpa)
 
 Inspired by https://codepen.io/setz/pen/gbpXoqw which uses a funky gamma modifier computation of the mandelbrot. 
