@@ -297,6 +297,10 @@
 
       <label>Visible Layers:<input id="layerVis" type="range" min="1" max="101" step="1"><span
           id="layerVal"></span></label>
+      <label>Layer Offset:
+        <input id="layerOffset" type="range" min="0" max="0" step="1" value="0">
+        <span id="layerOffsetVal">0</span>
+      </label>
       <label>Point Size ×:<input id="ptSize" type="range" min="0.2" max="4" step="0.05" value="1"><span
           id="ptVal">1.00</span></label>
       <label>Z Spacing ×:<input id="zScale" type="range" min="0.1" max="50" step="0.1" value="1"><span
@@ -1141,6 +1145,8 @@ function computeFractal(fractalType, qx, qy, px, py, cx, cy, gamma, iter, scaleM
     const resetAll = $('resetAll');
     const hueOffset = $('hueOffset');
     const hueOffsetVal = $('hueOffsetVal');
+    const layerOffset = $('layerOffset');
+    const layerOffsetVal = $('layerOffsetVal');
 
     let _hueAutoMode = 2;
 
@@ -1178,8 +1184,10 @@ function computeFractal(fractalType, qx, qy, px, py, cx, cy, gamma, iter, scaleM
       grid: +pGrid.value,
       zMin: +pZmin.value, zMax: +pZmax.value, dz: +pDz.value,
       zoom: +pZoom.value, escR: +pEsc.value, iter: +pIter.value,
-      dx: +pDx.value, dy: +pDy.value, scaleMode:+scaleMode.value,
-      hueOffset:hueOffset.value
+      dx: +pDx.value, dy: +pDy.value, scaleMode: +scaleMode.value,
+      hueOffset: hueOffset.value,
+      layers: +layerVis.value,
+      layerOff: +layerOffset.value
       // juliaMode: pJuliaMode.checked,
       // juliaRe: +pJuliaRe.value,
       // juliaIm: +pJuliaIm.value
@@ -1213,7 +1221,7 @@ function computeFractal(fractalType, qx, qy, px, py, cx, cy, gamma, iter, scaleM
       pDx.value = defaults.dx; pDy.value = defaults.dy;
       scaleMode.value = defaults.scaleMode;
       setSlider(hueOffset, defaults.hueOffset); _hueAutoMode = 2;
-      
+      setSlider(layerOffset, defaults.layerOff);
       // pJuliaMode.checked = defaults.juliaMode;
       // pJuliaRe.value = defaults.juliaRe;
       // pJuliaIm.value = defaults.juliaIm;
@@ -1529,7 +1537,7 @@ void main () {
       uniforms.basis.value = +ui.basis.value;
       uniforms.scheme.value = +ui.scheme.value;
       uniforms.hueOffset.value = +hueOffset.value / 360.0;
-        hueOffsetVal.textContent  = hueOffset.value + '°';
+      hueOffsetVal.textContent = hueOffset.value + '°';
       uniforms.clipX.value = +ui.clipX.value; ui.clipXVal.textContent = (+ui.clipX.value).toFixed(2);
       uniforms.clipY.value = +ui.clipY.value; ui.clipYVal.textContent = (+ui.clipY.value).toFixed(2);
       uniforms.clipZ.value = +ui.clipZ.value; ui.clipZVal.textContent = (+ui.clipZ.value).toFixed(2);
@@ -1544,13 +1552,26 @@ void main () {
     ui.layerVis.addEventListener('input', () => setVisibleLayers(+ui.layerVis.value));
     /* keep slider in-step with geometry draw-range */
     function setVisibleLayers(n) {
-      const count = Math.max(1, n | 0);          // 1 … numLayers
+      const count = Math.max(1, +layerVis.value | 0);
+      const offset = Math.min(+layerOffset.value | 0, numLayers - count);
 
-      geom.setDrawRange(0, count * ptsPerLayer); // show that many layers
-      ui.layerVal.textContent = count;           // numeric label
-      ui.layerVis.value = count;                 // ← sync the slider itself
-      paintRange(ui.layerVis);                   //   and repaint the fill track
+      // update slider bounds & labels
+      layerOffset.max = Math.max(0, numLayers - count);
+      layerVis.value = count; paintRange(layerVis);
+      layerVal.textContent = count;
+      layerOffset.value = offset; paintRange(layerOffset);
+      layerOffsetVal.textContent = offset;
+
+      // draw only [offset .. offset+count)
+      const startIndex = offset * ptsPerLayer;
+      const drawCount = count * ptsPerLayer;
+      geom.setDrawRange(startIndex, drawCount);
     }
+
+
+    layerVis.addEventListener('input', setVisibleLayers);
+    layerOffset.addEventListener('input', setVisibleLayers);
+
 
     /* ───── render-parameter “Apply” button ───── */
     ui.apply.addEventListener('click', () => {
@@ -1745,6 +1766,10 @@ void main () {
       ui.layerVis.min = 1;
       ui.layerVis.value = numLayers;
       ui.layerVal.textContent = numLayers;
+      layerOffset.max = Math.max(0, numLayers - +layerVis.value);
+      layerOffset.value = Math.min(+layerOffset.value, layerOffset.max);
+      layerOffsetVal.textContent = layerOffset.value;
+      paintRange(layerOffset);
     }
 
 
@@ -1833,7 +1858,7 @@ void main () {
         // step size (degrees per frame) — adjust as you like
         const step = 1;
         let v = +hueOffset.value;
-        v = (v + ( _hueAutoMode === 0 ? +step : -step ) + 360) % 360;
+        v = (v + (_hueAutoMode === 0 ? +step : -step) + 360) % 360;
         hueOffset.value = v;
         upd();
       }
