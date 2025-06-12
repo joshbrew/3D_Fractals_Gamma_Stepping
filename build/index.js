@@ -18,8 +18,8 @@ document.querySelectorAll('#ui input[type=range]').forEach(slider => {
 });
 
 import * as THREE from 'three';
-import { OrbitControls } from 'https://cdn.jsdelivr.net/npm/three@0.152.2/examples/jsm/controls/OrbitControls.js';
-import { PointerLockControls } from 'https://cdn.jsdelivr.net/npm/three@0.152.2/examples/jsm/controls/PointerLockControls.js';
+import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
+import { PointerLockControls } from 'three/examples/jsm/controls/PointerLockControls.js';
 /* ------- constants (unchanged) ------- */
 let gridSize = 800, zMin = 0, zMax = 2, dz = .02, numLayers = Math.round((zMax - zMin) / dz) + 1, dx = 0, dy = 0;
 let ptsPerLayer = gridSize * gridSize, zoom = 4, escapeR = 4, maxIter = 100;
@@ -65,6 +65,8 @@ const scaleMode = $('scaleMode');
 const resetAll = $('resetAll');
 const hueOffset = $('hueOffset');
 const hueOffsetVal = $('hueOffsetVal');
+const layerOffset = $('layerOffset');
+const layerOffsetVal = $('layerOffsetVal');
 
 let _hueAutoMode = 2;
 
@@ -103,7 +105,9 @@ const defaults = {
   zMin: +pZmin.value, zMax: +pZmax.value, dz: +pDz.value,
   zoom: +pZoom.value, escR: +pEsc.value, iter: +pIter.value,
   dx: +pDx.value, dy: +pDy.value, scaleMode: +scaleMode.value,
-  hueOffset:hueOffset.value
+  hueOffset: hueOffset.value,
+  layers: +layerVis.value,
+  layerOff: +layerOffset.value
   // juliaMode: pJuliaMode.checked,
   // juliaRe: +pJuliaRe.value,
   // juliaIm: +pJuliaIm.value
@@ -130,7 +134,6 @@ resetAll.addEventListener('click', () => {
   setSlider(ptSize, defaults.ptSize);
   setSlider(zScale, defaults.zScale);
   setVisibleLayers(defaults.layers);      // sync geometry draw-range
-
   /* numeric render parameters ------------------------------------ */
   pGrid.value = defaults.grid;
   pZmin.value = defaults.zMin; pZmax.value = defaults.zMax; pDz.value = defaults.dz;
@@ -138,6 +141,7 @@ resetAll.addEventListener('click', () => {
   pDx.value = defaults.dx; pDy.value = defaults.dy;
   scaleMode.value = defaults.scaleMode;
   setSlider(hueOffset, defaults.hueOffset); _hueAutoMode = 2;
+  setSlider(layerOffset, defaults.layerOff);
   // pJuliaMode.checked = defaults.juliaMode;
   // pJuliaRe.value = defaults.juliaRe;
   // pJuliaIm.value = defaults.juliaIm;
@@ -166,7 +170,7 @@ const ui = {
   fractal: fractalType, scheme: colorScheme, alpha: alphaMode, basis: thresholdBasis,
   low: lowThresh, high: highThresh, lowVal, highVal, hueOffset,
   clipX, clipY, clipZ, clipXVal, clipYVal, clipZVal,
-  layerVis, layerVal, ptSize, ptVal, loading, pDx, pDy, scaleMode,
+  layerVis, layerVal, ptSize, ptVal, loading, pDx, pDy, scaleMode: scaleMode,
   pGrid, pZmin, pZmax, pDz, pZoom, pEsc, pIter, apply: applyParams
 };
 /* ------- THREE setup (identical) ------- */
@@ -387,7 +391,7 @@ float r = vR, H, L;
     L = 0.40 + 0.50 * r;
   }
   else if (scheme == 26) {                    /* Mono-loop (10× grayscale flicker) */
-    float loop = mod(r * 10.0 + hueOffset, 1.0);
+    float loop = mod(r * 10.0, 1.0);
     float L = loop * 0.8;
     // zero saturation → grayscale
     vec3 col = hsl2rgb(vec3(0.0, 0.0, L));
@@ -453,7 +457,7 @@ function upd() {
   uniforms.basis.value = +ui.basis.value;
   uniforms.scheme.value = +ui.scheme.value;
   uniforms.hueOffset.value = +hueOffset.value / 360.0;
-    hueOffsetVal.textContent  = hueOffset.value + '°';
+  hueOffsetVal.textContent = hueOffset.value + '°';
   uniforms.clipX.value = +ui.clipX.value; ui.clipXVal.textContent = (+ui.clipX.value).toFixed(2);
   uniforms.clipY.value = +ui.clipY.value; ui.clipYVal.textContent = (+ui.clipY.value).toFixed(2);
   uniforms.clipZ.value = +ui.clipZ.value; ui.clipZVal.textContent = (+ui.clipZ.value).toFixed(2);
@@ -468,13 +472,26 @@ upd();
 ui.layerVis.addEventListener('input', () => setVisibleLayers(+ui.layerVis.value));
 /* keep slider in-step with geometry draw-range */
 function setVisibleLayers(n) {
-  const count = Math.max(1, n | 0);          // 1 … numLayers
+  const count = Math.max(1, +layerVis.value | 0);
+  const offset = Math.min(+layerOffset.value | 0, numLayers - count);
 
-  geom.setDrawRange(0, count * ptsPerLayer); // show that many layers
-  ui.layerVal.textContent = count;           // numeric label
-  ui.layerVis.value = count;                 // ← sync the slider itself
-  paintRange(ui.layerVis);                   //   and repaint the fill track
+  // update slider bounds & labels
+  layerOffset.max = Math.max(0, numLayers - count);
+  layerVis.value = count; paintRange(layerVis);
+  layerVal.textContent = count;
+  layerOffset.value = offset; paintRange(layerOffset);
+  layerOffsetVal.textContent = offset;
+
+  // draw only [offset .. offset+count)
+  const startIndex = offset * ptsPerLayer;
+  const drawCount = count * ptsPerLayer;
+  geom.setDrawRange(startIndex, drawCount);
 }
+
+
+layerVis.addEventListener('input', setVisibleLayers);
+layerOffset.addEventListener('input', setVisibleLayers);
+
 
 /* ───── render-parameter “Apply” button ───── */
 ui.apply.addEventListener('click', () => {
@@ -489,7 +506,6 @@ ui.apply.addEventListener('click', () => {
   dy = +ui.pDy.value;
   camera.position.set(0, -zoom * 1.5, zoom);
   scaleM = +ui.scaleMode.value;
-  fType = +fractalType.value;
   rebuildScene();
 });
 
@@ -622,6 +638,8 @@ fpsControls.addEventListener('unlock', () => {
 });
 
 
+
+
 /* ───── build / rebuild helpers ───── */
 
 function buildGeometry() {
@@ -668,7 +686,13 @@ function recalcDerived() {
   ui.layerVis.min = 1;
   ui.layerVis.value = numLayers;
   ui.layerVal.textContent = numLayers;
+  layerOffset.max = Math.max(0, numLayers - +layerVis.value);
+  layerOffset.value = Math.min(+layerOffset.value, layerOffset.max);
+  layerOffsetVal.textContent = layerOffset.value;
+  paintRange(layerOffset);
 }
+
+
 
 
 function finalizeGeometry() {
@@ -754,7 +778,7 @@ let last = performance.now();
     // step size (degrees per frame) — adjust as you like
     const step = 1;
     let v = +hueOffset.value;
-    v = (v + ( _hueAutoMode === 0 ? +step : -step ) + 360) % 360;
+    v = (v + (_hueAutoMode === 0 ? +step : -step) + 360) % 360;
     hueOffset.value = v;
     upd();
   }

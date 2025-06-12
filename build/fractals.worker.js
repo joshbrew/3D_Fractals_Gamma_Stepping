@@ -15,6 +15,16 @@ self.onmessage = e => {
     const invGrid = 1 / (gridSize - 1);
     const escapeR2 = escapeR * escapeR;
 
+    const isNewton =
+        fractalType === 26  || // Nova
+        fractalType === 40  || // Tri-Nova
+        fractalType === 41  || // Nova-Mandelbrot
+        fractalType === 42  || // Nova-2
+        fractalType === 43  || // Nova-2 (alt)
+        fractalType === 44  || // Quartic-Nova
+        fractalType === 45  || // Flower-Nova
+        fractalType === 46;    // Scatter-Nova
+
     let idx = 0;
     for (let i = 0; i < gridSize; i++) {
         const x0 = juliaMode
@@ -36,7 +46,7 @@ self.onmessage = e => {
 
                 // convergence test
                 const dx_ = nx - qx, dy_ = ny - qy;
-                if (dx_ * dx_ + dy_ * dy_ < epsilon) {
+                if (isNewton && dx_ * dx_ + dy_ * dy_ < epsilon) {
                     qx = nx; qy = ny;
                     iter++;
                     break outer;
@@ -96,6 +106,7 @@ function computeFractal(fractalType, qx, qy, px, py, cx, cy, gamma, iter, scaleM
     }
     const a = Math.abs(qx), b = Math.abs(qy);
     let nx, ny, npx = px, npy = py;
+    
 
     switch (fractalType) {
         case 1:  // Tricorn
