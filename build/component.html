@@ -1,133 +1,149 @@
 <div id="ui">
     <details open>
-        <summary>Controls ▾</summary>
+      <summary>Controls ▾</summary>
+      <hr>
+      <!-- Color schemes -->
+      <label>🎨:
+        <select id="colorScheme">
+          <option value="0">Violet-Cyan-White</option>
+          <option value="1">Fire</option>
+          <option value="2">Ice</option>
+          <option value="3">Sunset</option>
+          <option value="4">Forest</option>
+          <option value="5">Neon</option>
+          <option value="6">Grayscale</option>
+          <option value="7">Inferno</option>
+          <option value="8">Rainbow 360 °</option>
+          <option value="9">Rainbow 720 °</option>
+          <option value="10">Pastel Loop</option>
+          <option value="11">Viridis-ish</option>
+          <option value="12">Magma</option>
+          <option value="13">Plasma</option>
+          <option value="14">Cividis</option>
+          <option value="15">Ocean</option>
+          <option value="16">Midnight Blue</option>
+          <option value="17">Cool-Warm Diverge</option>
+          <option value="18">Rainbow 1080° (3 loops)</option>
+          <option value="19">Rainbow 1440° (4 loops)</option>
+          <option value="20">Pastel 5-loop</option>
+          <option value="21">Thermal</option>
+          <option value="22">Turbulent Wave</option>
+          <option value="23">Autumn</option>
+          <option value="24">Spring</option>
+          <option value="25">Summer</option>
+          <option value="26">Mono-loop (10× grayscale flicker)</option>
+          <option value="27">High-contrast Diverging</option>
+          <option value="28">Sine-wave Hue</option>
+          <option value="29">Sawtooth Loop (3 loops)</option>
+          <option value="30">Rainbow 2160° (6 loops)</option>
+          <option value="31">Triangle-wave 8 loops</option>
+          <option value="32">Exponential 12 loops</option>
+          <option value="33">Sawtooth 10 loops + offset</option>
+        </select>
+      </label>
 
-        <!-- Fractal selector (14) -->
-        <label>Fractal Type:
-            <select id="fractalType">
-                <option value="0" selected>Mandelbrot</option>
-                <option value="20">Inverse Mandelbrot (1/z²+c)</option>
-                <option value="37">Inverse Tricorn (1/conj(z)² + c)</option>
-                <option value="3">Perpendicular Mandel</option>
-                <option value="2">Burning Ship</option>
-                <option value="21">Burning Ship – Tip Zoom</option>
-                <option value="4">Celtic</option>
-                <option value="5">Buffalo</option>
-                <option value="6">Phoenix (λ ≈ -0.5)</option>
-                <option value="41">Nova Mandelbrot (z³ − 1, z₀ = 0)</option>
-                <option value="43">Nova 2</option>
-                <option value="26">Tri-Nova</option>
-                <option value="44">Quad-Nova</option>
-                <option value="40">Inverse Tri-Nova</option>
-                <option value="42">Inverse Tri-Nova 2</option>
-                <option value="27">Man-o-War</option>
-                <option value="11">Heart</option>
-                <option value="9">Cosine</option>
-                <option value="10">Sine</option>
-                <option value="12">Perpendicular Buffalo</option>
-                <option value="16">Tangent (tan z + c)</option>
-                <option value="17">Exponential (exp z + c)</option>
-                <option value="1">Tricorn Mandelbrot</option>
-                <option value="13">Spiral Mandelbrot</option>
-                <option value="7">Cubic Multibrot</option>
-                <option value="8">Quartic Multibrot</option>
-                <option value="14">Quintic Multibrot (z⁵ + c)</option>
-                <option value="15">Sextic Multibrot (z⁶ + c)</option>
-                <option value="18">Septic Multibrot (z⁷+c)</option>
-                <option value="19">Octic Multibrot (z⁸+c)</option>
-                <option value="22">Cubic Ship (|z|³ + c)</option>
-                <option value="23">Quartic Ship (|z|⁴ + c)</option>
-                <option value="24">Quintic Ship (|z|⁵ + c)</option>
-                <option value="25">Hexic Ship (|z|⁶ + c)</option>
-                <option value="30">Inverse Cubic (1 / z³ + c)</option>
-                <option value="31">Inverse Quartic (1 / z⁴ + c)</option>
-                <option value="32">Inverse Quintic (1 / z⁵ + c)</option>
-                <option value="33">Inverse Sextic (1 / z⁶ + c)</option>
-                <option value="34">Inverse Septic (1 / z⁷ + c)</option>
-                <option value="35">Inverse Octic (1 / z⁸ + c)</option>
-                <option value="36">Inverse Burning Ship (1/|z|² + c)</option>
-                <option value="38">Inverse Celtic (|1/z|² + c)</option>
-                <option value="39">Inverse Phoenix (1/z² – 0.5·z<sub>n–1</sub> + c)</option>
-                <option value="45">Quartic Flower-Nova</option>
-                <option value="46">Scatter-Nova</option>
-            </select>
+      <!-- alpha, thresholds, clip … -->
+      <label>Alpha Mode:
+        <select id="alphaMode">
+          <option value="0">Solid</option>
+          <option value="1" selected>Fade In</option>
+          <option value="2">Inverse</option>
+        </select></label>
+      <label>Threshold Basis:
+        <select id="thresholdBasis">
+          <option value="0">Escape Ratio</option>
+          <option value="1">Layer Index</option>
+        </select></label>
+      <label>Low α Threshold:<input id="lowThresh" type="range" min="0" max="1" step="0.01" value="0.20"><span
+          id="lowVal">0.20</span></label>
+      <label>High α Threshold:<input id="highThresh" type="range" min="0" max="1" step="0.01" value="1"><span
+          id="highVal">1.00</span></label>
+      
+      <hr>
+      <label>Clip X ≤<input id="clipX" type="range" min="-2" max="2" step="0.01" value="2"><span
+          id="clipXVal">2.00</span></label>
+      <label>Clip Y ≤<input id="clipY" type="range" min="-2" max="2" step="0.01" value="2"><span
+          id="clipYVal">2.00</span></label>
+      <label>Clip Z ≤<input id="clipZ" type="range" min="0" max="2" step="0.01" value="2"><span
+          id="clipZVal">2.00</span></label>
+
+      <label>Visible Layers:<input id="layerVis" type="range" min="1" max="101" step="1"><span
+          id="layerVal"></span></label>
+      <label>Point Size ×:<input id="ptSize" type="range" min="0.2" max="4" step="0.05" value="1"><span
+          id="ptVal">1.00</span></label>
+      <label>Z Spacing ×:<input id="zScale" type="range" min="0.1" max="50" step="0.1" value="1"><span
+          id="zVal">1.00</span></label>
+      <hr>
+
+      <fieldset style="border:1px solid #555;padding:6px">
+        <legend>Render Parameters</legend>
+        <!-- Fractal selector -->
+        <label>Fractal 📐:
+          <select id="fractalType">
+            <option value="0" selected>Mandelbrot</option>
+            <option value="20">Inverse Mandelbrot (1/z²+c)</option>
+            <option value="37">Inverse Tricorn (1/conj(z)² + c)</option>
+            <option value="3">Perpendicular Mandel</option>
+            <option value="2">Burning Ship</option>
+            <option value="21">Burning Ship – Tip Zoom</option>
+            <option value="4">Celtic</option>
+            <option value="5">Buffalo</option>
+            <option value="6">Phoenix (λ ≈ -0.5)</option>
+            <option value="41">Nova Mandelbrot (z³ − 1, z₀ = 0)</option>
+            <option value="43">Nova 2</option>
+            <option value="26">Tri-Nova</option>
+            <option value="44">Quad-Nova</option>
+            <option value="40">Inverse Tri-Nova</option>
+            <option value="42">Inverse Tri-Nova 2</option>
+            <option value="27">Man-o-War</option>
+            <option value="11">Heart</option>
+            <option value="9">Cosine</option>
+            <option value="10">Sine</option>
+            <option value="12">Perpendicular Buffalo</option>
+            <option value="16">Tangent (tan z + c)</option>
+            <option value="17">Exponential (exp z + c)</option>
+            <option value="1">Tricorn Mandelbrot</option>
+            <option value="13">Spiral Mandelbrot</option>
+            <option value="7">Cubic Multibrot</option>
+            <option value="8">Quartic Multibrot</option>
+            <option value="14">Quintic Multibrot (z⁵ + c)</option>
+            <option value="15">Sextic Multibrot (z⁶ + c)</option>
+            <option value="18">Septic Multibrot (z⁷+c)</option>
+            <option value="19">Octic Multibrot (z⁸+c)</option>
+            <option value="22">Cubic Ship (|z|³ + c)</option>
+            <option value="23">Quartic Ship (|z|⁴ + c)</option>
+            <option value="24">Quintic Ship (|z|⁵ + c)</option>
+            <option value="25">Hexic Ship (|z|⁶ + c)</option>
+            <option value="30">Inverse Cubic (1 / z³ + c)</option>
+            <option value="31">Inverse Quartic (1 / z⁴ + c)</option>
+            <option value="32">Inverse Quintic (1 / z⁵ + c)</option>
+            <option value="33">Inverse Sextic (1 / z⁶ + c)</option>
+            <option value="34">Inverse Septic (1 / z⁷ + c)</option>
+            <option value="35">Inverse Octic (1 / z⁸ + c)</option>
+            <option value="36">Inverse Burning Ship (1/|z|² + c)</option>
+            <option value="38">Inverse Celtic (|1/z|² + c)</option>
+            <option value="39">Inverse Phoenix (1/z² – 0.5·z<sub>n–1</sub> + c)</option>
+            <option value="45">Quartic Flower-Nova</option>
+            <option value="46">Scatter-Nova</option>
+          </select>
         </label>
-
-        <!-- Color schemes (same 8) -->
-        <label>Color Scheme:
-            <select id="colorScheme">
-                <option value="0">Violet-Cyan-White</option>
-                <option value="1">Fire</option>
-                <option value="2">Ice</option>
-                <option value="3">Sunset</option>
-                <option value="4">Forest</option>
-                <option value="5">Neon</option>
-                <option value="6">Grayscale</option>
-                <option value="7">Inferno</option>
-                <option value="8">Rainbow 360 °</option>
-                <option value="9">Rainbow 720 °</option>
-                <option value="10">Pastel Loop</option>
-                <option value="11">Viridis-ish</option>
-                <option value="12">Magma</option>
-                <option value="13">Plasma</option>
-                <option value="14">Cividis</option>
-                <option value="15">Ocean</option>
-                <option value="16">Midnight Blue</option>
-                <option value="17">Cool-Warm Diverge</option>
-            </select>
+        <label>Grid (px):<input id="pGrid" type="number" min="100" max="1200" step="50" value="800"></label>
+        <label>zMin:<input id="pZmin" type="number" step="0.01" value="0"></label>
+        <label>zMax:<input id="pZmax" type="number" step="0.01" value="2"></label>
+        <label>dz (step):<input id="pDz" type="number" step="0.001" value="0.02"></label>
+        <label>zoom:<input id="pZoom" type="number" step="0.1" value="4"></label>
+        <label>escapeR:<input id="pEsc" type="number" step="0.5" value="4"></label>
+        <label>maxIter:<input id="pIter" type="number" min="10" max="1000" step="10" value="100"></label>
+        <label>dx (real):<input id="pDx" type="number" step="0.001" value="0"></label>
+        <label>dy (imag):<input id="pDy" type="number" step="0.001" value="0"></label>
+        <label>Scale Mode:
+          <select id="scaleMode">
+            <option value="0">None</option>
+            <option value="1" selected>Multiply</option>
+            <option value="2">Divide</option>
+          </select>
         </label>
-
-        <!-- existing UI trimmed for brevity: alpha, thresholds, clip … -->
-        <label>Alpha Mode:
-            <select id="alphaMode">
-                <option value="0">Solid</option>
-                <option value="1" selected>Fade In</option>
-                <option value="2">Inverse</option>
-            </select></label>
-        <label>Threshold Basis:
-            <select id="thresholdBasis">
-                <option value="0">Escape Ratio</option>
-                <option value="1">Layer Index</option>
-            </select></label>
-        <label>Low α Threshold:<input id="lowThresh" type="range" min="0" max="1" step="0.01" value="0.20"><span
-                id="lowVal">0.20</span></label>
-        <label>High α Threshold:<input id="highThresh" type="range" min="0" max="1" step="0.01" value="1"><span
-                id="highVal">1.00</span></label>
-        <hr>
-        <label>Clip X ≤<input id="clipX" type="range" min="-2" max="2" step="0.01" value="2"><span
-                id="clipXVal">2.00</span></label>
-        <label>Clip Y ≤<input id="clipY" type="range" min="-2" max="2" step="0.01" value="2"><span
-                id="clipYVal">2.00</span></label>
-        <label>Clip Z ≤<input id="clipZ" type="range" min="0" max="2" step="0.01" value="2"><span
-                id="clipZVal">2.00</span></label>
-
-        <label>Visible Layers:<input id="layerVis" type="range" min="1" max="101" step="1"><span
-                id="layerVal"></span></label>
-        <label>Point Size ×:<input id="ptSize" type="range" min="0.2" max="4" step="0.05" value="1"><span
-                id="ptVal">1.00</span></label>
-        <label>Z Spacing ×:<input id="zScale" type="range" min="0.1" max="50" step="0.1" value="1"><span
-                id="zVal">1.00</span></label>
-        <hr>
-
-        <fieldset style="border:1px solid #555;padding:6px">
-            <legend>Render Parameters</legend>
-            <label>gridSize (px):<input id="pGrid" type="number" min="100" max="1200" step="50" value="800"></label>
-            <label>zMin:<input id="pZmin" type="number" step="0.01" value="0"></label>
-            <label>zMax:<input id="pZmax" type="number" step="0.01" value="2"></label>
-            <label>dz (step):<input id="pDz" type="number" step="0.001" value="0.02"></label>
-            <label>zoom:<input id="pZoom" type="number" step="0.1" value="4"></label>
-            <label>escapeR:<input id="pEsc" type="number" step="0.5" value="4"></label>
-            <label>maxIter:<input id="pIter" type="number" min="10" max="1000" step="10" value="100"></label>
-            <label>dx (real):<input id="pDx" type="number" step="0.001" value="0"></label>
-            <label>dy (imag):<input id="pDy" type="number" step="0.001" value="0"></label>
-            <label>Scale Mode:
-                <select id="scaleMode">
-                    <option value="0">None</option>
-                    <option value="1" selected>Multiply</option>
-                    <option value="2">Divide</option>
-                </select>
-            </label>
-            <!--         <label>Julia Mode:
+        <!--         <label>Julia Mode:
           <input id="pJuliaMode" type="checkbox">
         </label>
         <label>Julia Re:
@@ -136,92 +152,92 @@
         <label>Julia Im:
           <input id="pJuliaIm" type="number" step="0.01" value="0.00">
         </label> -->
-            <button id="applyParams" style="width:100%;margin-top:6px">Apply</button>
-            <button id="resetAll" style="width:100%;margin-top:4px;background:#550;border-color:#777">
-                Reset defaults
-            </button>
-        </fieldset>
+        <button id="applyParams" style="width:100%;margin-top:6px">Apply</button>
+        <button id="resetAll" style="width:100%;margin-top:4px;background:#550;border-color:#777">
+          Reset defaults
+        </button>
+      </fieldset>
 
     </details>
     <details>
-        <summary>Key / Slider Reference ▾</summary>
+      <summary>Key / Slider Reference ▾</summary>
 
-        <!-- movement --------------------------------------------------------->
-        <h4 style="margin:.4rem 0 0;">Navigation</h4>
-        <ul style="margin:.25rem 0 .5rem 1.2rem;padding:0;list-style:square outside;">
-            <li><b>W A S D</b> – move forward / left / back / right</li>
-            <li><b>Mouse Drag</b> – orbit tumble (when not in FPS)</li>
-            <li><b>Scroll Wheel</b> – zoom in / out</li>
-            <li><b>Esc</b> – exit FPS pointer-lock</li>
-        </ul>
+      <!-- movement --------------------------------------------------------->
+      <h4 style="margin:.4rem 0 0;">Navigation</h4>
+      <ul style="margin:.25rem 0 .5rem 1.2rem;padding:0;list-style:square outside;">
+        <li><b>W A S D</b> – move forward / left / back / right</li>
+        <li><b>Mouse Drag</b> – orbit tumble (when not in FPS)</li>
+        <li><b>Scroll Wheel</b> – zoom in / out</li>
+        <li><b>Esc</b> – exit FPS pointer-lock</li>
+      </ul>
 
-        <!-- quick keys ------------------------------------------------------->
-        <h4 style="margin:.4rem 0 0;">Quick Keys</h4>
-        <ul style="margin:.25rem 0 .5rem 1.2rem;padding:0;list-style:square outside;">
-            <li><b>Q / E</b> – Low α threshold (↓ / ↑)</li>
-            <li><b>F / G</b> – High α threshold</li>
-            <li><b>B / N</b> – Visible layers</li>
-            <li><b>Z / X</b> – Point size</li>
-            <li><b>N / M</b> – Z-spacing multiplier</li>
-        </ul>
+      <!-- quick keys ------------------------------------------------------->
+      <h4 style="margin:.4rem 0 0;">Quick Keys</h4>
+      <ul style="margin:.25rem 0 .5rem 1.2rem;padding:0;list-style:square outside;">
+        <li><b>Q / E</b> – Low α threshold (↓ / ↑)</li>
+        <li><b>F / G</b> – High α threshold</li>
+        <li><b>B / N</b> – Visible layers</li>
+        <li><b>Z / X</b> – Point size</li>
+        <li><b>N / M</b> – Z-spacing multiplier</li>
+      </ul>
 
-        <!-- variable meanings ----------------------------------------------->
-        <h4 style="margin:.4rem 0 0;">Parameter Notes</h4>
+      <!-- variable meanings ----------------------------------------------->
+      <h4 style="margin:.4rem 0 0;">Parameter Notes</h4>
+      <dl style="margin:.25rem 0 .5rem;">
+        <dt><b>Low / High α</b></dt>
+        <dd style="margin:0 0 .3rem 1.2rem;">Alpha fade window. Points outside are discarded.</dd>
+
+        <dt><b>Clip X / Y / Z</b></dt>
+        <dd style="margin:0 0 .3rem 1.2rem;">Spatial cutting planes (units = world-coords after scaling).</dd>
+
+        <dt><b>Visible Layers</b></dt>
+        <dd style="margin:0 0 .3rem 1.2rem;">How many slice planes are drawn (out of the total).</dd>
+
+        <dt><b>Point Size ×</b></dt>
+        <dd style="margin:0 0 .3rem 1.2rem;">Global multiplier on per-point size in screen pixels.</dd>
+
+        <dt><b>Z Spacing ×</b></dt>
+        <dd style="margin:0 0 .3rem 1.2rem;">Stretch/compress distance between slice planes.</dd>
+
+        <h4 style="margin:.4rem 0 0;">Render Parameters</h4>
         <dl style="margin:.25rem 0 .5rem;">
-            <dt><b>Low / High α</b></dt>
-            <dd style="margin:0 0 .3rem 1.2rem;">Alpha fade window. Points outside are discarded.</dd>
+          <dt><b>Grid (px)</b></dt>
+          <dd style="margin:0 0 .3rem 1.2rem;">
+            Number of sample points per slice (gridSize² total); larger = finer detail, slower.
+          </dd>
 
-            <dt><b>Clip X / Y / Z</b></dt>
-            <dd style="margin:0 0 .3rem 1.2rem;">Spatial cutting planes (units = world-coords after scaling).</dd>
+          <dt><b>zMin / zMax</b></dt>
+          <dd style="margin:0 0 .3rem 1.2rem;">
+            Starting and ending slice coordinates (before&nbsp;Z&nbsp;spacing). Range 0–2 maps into full fractal
+            depth.
+          </dd>
 
-            <dt><b>Visible Layers</b></dt>
-            <dd style="margin:0 0 .3rem 1.2rem;">How many slice planes are drawn (out of the total).</dd>
+          <dt><b>dz (step)</b></dt>
+          <dd style="margin:0 0 .3rem 1.2rem;">
+            Distance between consecutive slices in fractal space (smaller = more layers).
+          </dd>
 
-            <dt><b>Point Size ×</b></dt>
-            <dd style="margin:0 0 .3rem 1.2rem;">Global multiplier on per-point size in screen pixels.</dd>
+          <dt><b>zoom</b></dt>
+          <dd style="margin:0 0 .3rem 1.2rem;">
+            Width/height of the complex-plane window; lower values zoom in.
+          </dd>
 
-            <dt><b>Z Spacing ×</b></dt>
-            <dd style="margin:0 0 .3rem 1.2rem;">Stretch/compress distance between slice planes.</dd>
+          <dt><b>escapeR</b></dt>
+          <dd style="margin:0 0 .3rem 1.2rem;">
+            Escape radius used in the iteration test; raise for higher-order fractals.
+          </dd>
 
-            <h4 style="margin:.4rem 0 0;">Render Parameters</h4>
-            <dl style="margin:.25rem 0 .5rem;">
-                <dt><b>gridSize (px)</b></dt>
-                <dd style="margin:0 0 .3rem 1.2rem;">
-                    Number of sample points per slice (gridSize² total); larger = finer detail, slower.
-                </dd>
+          <dt><b>maxIter</b></dt>
+          <dd style="margin:0 0 .3rem 1.2rem;">
+            Maximum iterations per point. Higher = sharper edges, slower render.
+          </dd>
 
-                <dt><b>zMin / zMax</b></dt>
-                <dd style="margin:0 0 .3rem 1.2rem;">
-                    Starting and ending slice coordinates (before&nbsp;Z&nbsp;spacing). Range 0–2 maps into full fractal
-                    depth.
-                </dd>
-
-                <dt><b>dz (step)</b></dt>
-                <dd style="margin:0 0 .3rem 1.2rem;">
-                    Distance between consecutive slices in fractal space (smaller = more layers).
-                </dd>
-
-                <dt><b>zoom</b></dt>
-                <dd style="margin:0 0 .3rem 1.2rem;">
-                    Width/height of the complex-plane window; lower values zoom in.
-                </dd>
-
-                <dt><b>escapeR</b></dt>
-                <dd style="margin:0 0 .3rem 1.2rem;">
-                    Escape radius used in the iteration test; raise for higher-order fractals.
-                </dd>
-
-                <dt><b>maxIter</b></dt>
-                <dd style="margin:0 0 .3rem 1.2rem;">
-                    Maximum iterations per point. Higher = sharper edges, slower render.
-                </dd>
-
-                <dt><b>dx / dy</b></dt>
-                <dd style="margin:0 0 .3rem 1.2rem;">
-                    Real and imaginary offset of the fractal window (pans the view).
-                </dd>
-            </dl>
+          <dt><b>dx / dy</b></dt>
+          <dd style="margin:0 0 .3rem 1.2rem;">
+            Real and imaginary offset of the fractal window (pans the view).
+          </dd>
         </dl>
+      </dl>
     </details>
-</div>
-<div id="loading">Loading layers: 0 / 0</div>
+  </div>
+  <div id="loading">Loading layers: 0 / 0</div>
