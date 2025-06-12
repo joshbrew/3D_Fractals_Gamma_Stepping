@@ -102,7 +102,8 @@ const defaults = {
   grid: +pGrid.value,
   zMin: +pZmin.value, zMax: +pZmax.value, dz: +pDz.value,
   zoom: +pZoom.value, escR: +pEsc.value, iter: +pIter.value,
-  dx: +pDx.value, dy: +pDy.value, scaleMode,
+  dx: +pDx.value, dy: +pDy.value, scaleMode: +scaleMode.value,
+  hueOffset:hueOffset.value
   // juliaMode: pJuliaMode.checked,
   // juliaRe: +pJuliaRe.value,
   // juliaIm: +pJuliaIm.value
@@ -135,6 +136,8 @@ resetAll.addEventListener('click', () => {
   pZmin.value = defaults.zMin; pZmax.value = defaults.zMax; pDz.value = defaults.dz;
   pZoom.value = defaults.zoom; pEsc.value = defaults.escR; pIter.value = defaults.iter;
   pDx.value = defaults.dx; pDy.value = defaults.dy;
+  scaleMode.value = defaults.scaleMode;
+  setSlider(hueOffset, defaults.hueOffset); _hueAutoMode = 2;
   // pJuliaMode.checked = defaults.juliaMode;
   // pJuliaRe.value = defaults.juliaRe;
   // pJuliaIm.value = defaults.juliaIm;
@@ -152,6 +155,7 @@ resetAll.addEventListener('click', () => {
   dx = defaults.dx;
   dy = defaults.dy;
   camera.position.set(0, -zoom * 1.5, zoom);
+  scaleM = defaults.scaleMode;
 
   rebuildScene();                // full recompute & redraw
 });
@@ -162,7 +166,7 @@ const ui = {
   fractal: fractalType, scheme: colorScheme, alpha: alphaMode, basis: thresholdBasis,
   low: lowThresh, high: highThresh, lowVal, highVal, hueOffset,
   clipX, clipY, clipZ, clipXVal, clipYVal, clipZVal,
-  layerVis, layerVal, ptSize, ptVal, loading, pDx, pDy, scaleMode: scaleMode,
+  layerVis, layerVal, ptSize, ptVal, loading, pDx, pDy, scaleMode,
   pGrid, pZmin, pZmax, pDz, pZoom, pEsc, pIter, apply: applyParams
 };
 /* ------- THREE setup (identical) ------- */
