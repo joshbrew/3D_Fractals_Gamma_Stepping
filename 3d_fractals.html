@@ -225,60 +225,9 @@
   <div id="ui">
     <details open>
       <summary>Controls ▾</summary>
-
-      <!-- Fractal selector (14) -->
-      <label>Fractal Type:
-        <select id="fractalType">
-          <option value="0" selected>Mandelbrot</option>
-          <option value="20">Inverse Mandelbrot (1/z²+c)</option>
-          <option value="37">Inverse Tricorn (1/conj(z)² + c)</option>
-          <option value="3">Perpendicular Mandel</option>
-          <option value="2">Burning Ship</option>
-          <option value="21">Burning Ship – Tip Zoom</option>
-          <option value="4">Celtic</option>
-          <option value="5">Buffalo</option>
-          <option value="6">Phoenix (λ ≈ -0.5)</option>
-          <option value="41">Nova Mandelbrot (z³ − 1, z₀ = 0)</option>
-          <option value="43">Nova 2</option>
-          <option value="26">Tri-Nova</option>
-          <option value="44">Quad-Nova</option>
-          <option value="40">Inverse Tri-Nova</option>
-          <option value="42">Inverse Tri-Nova 2</option>
-          <option value="27">Man-o-War</option>
-          <option value="11">Heart</option>
-          <option value="9">Cosine</option>
-          <option value="10">Sine</option>
-          <option value="12">Perpendicular Buffalo</option>
-          <option value="16">Tangent (tan z + c)</option>
-          <option value="17">Exponential (exp z + c)</option>
-          <option value="1">Tricorn Mandelbrot</option>
-          <option value="13">Spiral Mandelbrot</option>
-          <option value="7">Cubic Multibrot</option>
-          <option value="8">Quartic Multibrot</option>
-          <option value="14">Quintic Multibrot (z⁵ + c)</option>
-          <option value="15">Sextic Multibrot (z⁶ + c)</option>
-          <option value="18">Septic Multibrot (z⁷+c)</option>
-          <option value="19">Octic Multibrot (z⁸+c)</option>
-          <option value="22">Cubic Ship (|z|³ + c)</option>
-          <option value="23">Quartic Ship (|z|⁴ + c)</option>
-          <option value="24">Quintic Ship (|z|⁵ + c)</option>
-          <option value="25">Hexic Ship (|z|⁶ + c)</option>
-          <option value="30">Inverse Cubic (1 / z³ + c)</option>
-          <option value="31">Inverse Quartic (1 / z⁴ + c)</option>
-          <option value="32">Inverse Quintic (1 / z⁵ + c)</option>
-          <option value="33">Inverse Sextic (1 / z⁶ + c)</option>
-          <option value="34">Inverse Septic (1 / z⁷ + c)</option>
-          <option value="35">Inverse Octic (1 / z⁸ + c)</option>
-          <option value="36">Inverse Burning Ship (1/|z|² + c)</option>
-          <option value="38">Inverse Celtic (|1/z|² + c)</option>
-          <option value="39">Inverse Phoenix (1/z² – 0.5·z<sub>n–1</sub> + c)</option>
-          <option value="45">Quartic Flower-Nova</option>
-          <option value="46">Scatter-Nova</option>
-        </select>
-      </label>
-
-      <!-- Color schemes (same 8) -->
-      <label>Color Scheme:
+      <hr>
+      <!-- Color schemes -->
+      <label>🎨:
         <select id="colorScheme">
           <option value="0">Violet-Cyan-White</option>
           <option value="1">Fire</option>
@@ -298,10 +247,26 @@
           <option value="15">Ocean</option>
           <option value="16">Midnight Blue</option>
           <option value="17">Cool-Warm Diverge</option>
+          <option value="18">Rainbow 1080° (3 loops)</option>
+          <option value="19">Rainbow 1440° (4 loops)</option>
+          <option value="20">Pastel 5-loop</option>
+          <option value="21">Thermal</option>
+          <option value="22">Turbulent Wave</option>
+          <option value="23">Autumn</option>
+          <option value="24">Spring</option>
+          <option value="25">Summer</option>
+          <option value="26">Mono-loop (10× grayscale flicker)</option>
+          <option value="27">High-contrast Diverging</option>
+          <option value="28">Sine-wave Hue</option>
+          <option value="29">Sawtooth Loop (3 loops)</option>
+          <option value="30">Rainbow 2160° (6 loops)</option>
+          <option value="31">Triangle-wave 8 loops</option>
+          <option value="32">Exponential 12 loops</option>
+          <option value="33">Sawtooth 10 loops + offset</option>
         </select>
       </label>
 
-      <!-- existing UI trimmed for brevity: alpha, thresholds, clip … -->
+      <!-- alpha, thresholds, clip … -->
       <label>Alpha Mode:
         <select id="alphaMode">
           <option value="0">Solid</option>
@@ -317,6 +282,7 @@
           id="lowVal">0.20</span></label>
       <label>High α Threshold:<input id="highThresh" type="range" min="0" max="1" step="0.01" value="1"><span
           id="highVal">1.00</span></label>
+      
       <hr>
       <label>Clip X ≤<input id="clipX" type="range" min="-2" max="2" step="0.01" value="2"><span
           id="clipXVal">2.00</span></label>
@@ -335,7 +301,57 @@
 
       <fieldset style="border:1px solid #555;padding:6px">
         <legend>Render Parameters</legend>
-        <label>gridSize (px):<input id="pGrid" type="number" min="100" max="1200" step="50" value="800"></label>
+        <!-- Fractal selector -->
+        <label>Fractal 📐:
+          <select id="fractalType">
+            <option value="0" selected>Mandelbrot</option>
+            <option value="20">Inverse Mandelbrot (1/z²+c)</option>
+            <option value="37">Inverse Tricorn (1/conj(z)² + c)</option>
+            <option value="3">Perpendicular Mandel</option>
+            <option value="2">Burning Ship</option>
+            <option value="21">Burning Ship – Tip Zoom</option>
+            <option value="4">Celtic</option>
+            <option value="5">Buffalo</option>
+            <option value="6">Phoenix (λ ≈ -0.5)</option>
+            <option value="41">Nova Mandelbrot (z³ − 1, z₀ = 0)</option>
+            <option value="43">Nova 2</option>
+            <option value="26">Tri-Nova</option>
+            <option value="44">Quad-Nova</option>
+            <option value="40">Inverse Tri-Nova</option>
+            <option value="42">Inverse Tri-Nova 2</option>
+            <option value="27">Man-o-War</option>
+            <option value="11">Heart</option>
+            <option value="9">Cosine</option>
+            <option value="10">Sine</option>
+            <option value="12">Perpendicular Buffalo</option>
+            <option value="16">Tangent (tan z + c)</option>
+            <option value="17">Exponential (exp z + c)</option>
+            <option value="1">Tricorn Mandelbrot</option>
+            <option value="13">Spiral Mandelbrot</option>
+            <option value="7">Cubic Multibrot</option>
+            <option value="8">Quartic Multibrot</option>
+            <option value="14">Quintic Multibrot (z⁵ + c)</option>
+            <option value="15">Sextic Multibrot (z⁶ + c)</option>
+            <option value="18">Septic Multibrot (z⁷+c)</option>
+            <option value="19">Octic Multibrot (z⁸+c)</option>
+            <option value="22">Cubic Ship (|z|³ + c)</option>
+            <option value="23">Quartic Ship (|z|⁴ + c)</option>
+            <option value="24">Quintic Ship (|z|⁵ + c)</option>
+            <option value="25">Hexic Ship (|z|⁶ + c)</option>
+            <option value="30">Inverse Cubic (1 / z³ + c)</option>
+            <option value="31">Inverse Quartic (1 / z⁴ + c)</option>
+            <option value="32">Inverse Quintic (1 / z⁵ + c)</option>
+            <option value="33">Inverse Sextic (1 / z⁶ + c)</option>
+            <option value="34">Inverse Septic (1 / z⁷ + c)</option>
+            <option value="35">Inverse Octic (1 / z⁸ + c)</option>
+            <option value="36">Inverse Burning Ship (1/|z|² + c)</option>
+            <option value="38">Inverse Celtic (|1/z|² + c)</option>
+            <option value="39">Inverse Phoenix (1/z² – 0.5·z<sub>n–1</sub> + c)</option>
+            <option value="45">Quartic Flower-Nova</option>
+            <option value="46">Scatter-Nova</option>
+          </select>
+        </label>
+        <label>Grid (px):<input id="pGrid" type="number" min="100" max="1200" step="50" value="800"></label>
         <label>zMin:<input id="pZmin" type="number" step="0.01" value="0"></label>
         <label>zMax:<input id="pZmax" type="number" step="0.01" value="2"></label>
         <label>dz (step):<input id="pDz" type="number" step="0.001" value="0.02"></label>
@@ -389,6 +405,7 @@
         <li><b>N / M</b> – Z-spacing multiplier</li>
       </ul>
 
+      <hr>
       <!-- variable meanings ----------------------------------------------->
       <h4 style="margin:.4rem 0 0;">Parameter Notes</h4>
       <dl style="margin:.25rem 0 .5rem;">
@@ -407,9 +424,10 @@
         <dt><b>Z Spacing ×</b></dt>
         <dd style="margin:0 0 .3rem 1.2rem;">Stretch/compress distance between slice planes.</dd>
 
+        <hr>
         <h4 style="margin:.4rem 0 0;">Render Parameters</h4>
         <dl style="margin:.25rem 0 .5rem;">
-          <dt><b>gridSize (px)</b></dt>
+          <dt><b>Grid (px)</b></dt>
           <dd style="margin:0 0 .3rem 1.2rem;">
             Number of sample points per slice (gridSize² total); larger = finer detail, slower.
           </dd>
@@ -510,6 +528,8 @@
     const applyParams = $('applyParams');
     const scaleMode = $('scaleMode');
     const resetAll = $('resetAll');
+
+    let fType = fractalType.value;
 
     // const pJuliaMode = $('pJuliaMode'),
     //   pJuliaRe = $('pJuliaRe'),
@@ -776,6 +796,84 @@ void main () {
         L = 0.25 + 0.55*abs(r-0.5);
 
       /* fallback: old Inferno-style if scheme out of range */
+      }
+      else if (scheme == 18) {                    /* Rainbow 1080° (3 loops) */
+        H = mod(r * 3.0, 1.0);
+        L = 0.50 + 0.25*(1.0 - r);
+      }
+      else if (scheme == 19) {                    /* Rainbow 1440° (4 loops) */
+        H = mod(r * 4.0, 1.0);
+        L = 0.50;
+      }
+      else if (scheme == 20) {                    /* Pastel 5-loop */
+        H = mod(r * 5.0 + 0.2, 1.0);
+        L = 0.65;
+      }
+      else if (scheme == 21) {                    /* Thermal (blue→red) */
+        H = (240.0 - 240.0 * r) / 360.0;
+        L = 0.30 + 0.40 * r;
+      }
+      else if (scheme == 22) {                    /* Turbulent wave */
+        H = mod(r * 6.0 + sin(r * 10.0), 1.0);
+        L = 0.40 + 0.30 * sin(r * 20.0);
+      }
+      else if (scheme == 23) {                    /* Autumn (gold→rust) */
+        H = (30.0 + 50.0 * r) / 360.0;
+        L = 0.45 + 0.30 * r;
+      }
+      else if (scheme == 24) {                    /* Spring (emerald→rose) */
+        H = (90.0 - 80.0 * r) / 360.0;
+        L = 0.50 + 0.40 * r;
+      }
+      else if (scheme == 25) {                    /* Summer (lime→teal) */
+        H = (100.0 - 100.0 * r) / 360.0;
+        L = 0.40 + 0.50 * r;
+      }
+      else if (scheme == 26) {                    /* Mono-loop (10× grayscale flicker) */
+        float loop = mod(r * 10.0, 1.0);
+        float L = loop * 0.8;
+        // zero saturation → grayscale
+        vec3 col = hsl2rgb(vec3(0.0, 0.0, L));
+        gl_FragColor = vec4(col, a);
+        return;
+      }
+      else if (scheme == 27) {                    /* High-contrast diverging */
+        H = r < 0.5
+            ? mix(0.80, 0.40, r * 2.0)
+            : mix(0.10, 0.00, (r - 0.5) * 2.0);
+        L = 0.20 + 0.60 * abs(r - 0.5);
+      }
+      else if (scheme == 28) {                    /* Sine-wave hue */
+        H = mod(sin(r * 6.28318) * 0.5 + 0.5, 1.0);
+        L = 0.50;
+      }
+      else if (scheme == 29) {                    /* Sawtooth loop (3×) */
+        H = fract(r * 3.0);
+        L = fract(r * 3.0);
+      }
+      else if (scheme == 30) {                    /* Rainbow 2160° (6 loops) */
+        H = mod(r * 6.0, 1.0);
+        // pulsating brightness every half-loop
+        L = 0.45 + 0.40 * abs(sin(r * 6.0 * 3.14159));
+      }
+      else if (scheme == 31) {                    /* Triangle-wave 8 loops */
+        float t = fract(r * 8.0);
+        // ramp up then down each loop
+        H = t < 0.5
+            ? (t * 2.0)
+            : (1.0 - t) * 2.0;
+        // dip in the middle of each cycle
+        L = 0.60 - 0.30 * abs(t - 0.5);
+      }
+      else if (scheme == 32) {                    /* Exponential 12 loops */
+        H = mod(pow(r, 0.7) * 12.0, 1.0);
+        // slow fade-in, sharp fall-off
+        L = 0.50 + 0.30 * pow(r, 1.2);
+      }
+      else if (scheme == 33) {                    /* Sawtooth 10 loops + offset */
+        H = fract(r * 10.0 + 0.3);
+        // linear brightening
+        L = 0.40 + 0.50 * r;
       }
       else{
         H = (40.0 + 310.0*pow(r,1.3)) / 360.0;
@@ -1687,7 +1785,7 @@ function computeFractal(fractalType, qx, qy, px, py, cx, cy, gamma, iter, scaleM
       for (let i = 0; i < MAX_WORKERS; i++) launch();
     }
     compute();
-    ui.fractal.addEventListener('change', compute);
+    // ui.fractal.addEventListener('change', compute);
 
     /* ------- animation loop & resize ------- */
     let last = performance.now();
