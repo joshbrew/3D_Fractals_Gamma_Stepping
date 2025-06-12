@@ -1178,7 +1178,8 @@ function computeFractal(fractalType, qx, qy, px, py, cx, cy, gamma, iter, scaleM
       grid: +pGrid.value,
       zMin: +pZmin.value, zMax: +pZmax.value, dz: +pDz.value,
       zoom: +pZoom.value, escR: +pEsc.value, iter: +pIter.value,
-      dx: +pDx.value, dy: +pDy.value, scaleMode,
+      dx: +pDx.value, dy: +pDy.value, scaleMode:+scaleMode.value,
+      hueOffset:hueOffset.value
       // juliaMode: pJuliaMode.checked,
       // juliaRe: +pJuliaRe.value,
       // juliaIm: +pJuliaIm.value
@@ -1205,12 +1206,14 @@ function computeFractal(fractalType, qx, qy, px, py, cx, cy, gamma, iter, scaleM
       setSlider(ptSize, defaults.ptSize);
       setSlider(zScale, defaults.zScale);
       setVisibleLayers(defaults.layers);      // sync geometry draw-range
-
       /* numeric render parameters ------------------------------------ */
       pGrid.value = defaults.grid;
       pZmin.value = defaults.zMin; pZmax.value = defaults.zMax; pDz.value = defaults.dz;
       pZoom.value = defaults.zoom; pEsc.value = defaults.escR; pIter.value = defaults.iter;
       pDx.value = defaults.dx; pDy.value = defaults.dy;
+      scaleMode.value = defaults.scaleMode;
+      setSlider(hueOffset, defaults.hueOffset); _hueAutoMode = 2;
+      
       // pJuliaMode.checked = defaults.juliaMode;
       // pJuliaRe.value = defaults.juliaRe;
       // pJuliaIm.value = defaults.juliaIm;
@@ -1228,6 +1231,7 @@ function computeFractal(fractalType, qx, qy, px, py, cx, cy, gamma, iter, scaleM
       dx = defaults.dx;
       dy = defaults.dy;
       camera.position.set(0, -zoom * 1.5, zoom);
+      scaleM = defaults.scaleMode;
 
       rebuildScene();                // full recompute & redraw
     });
