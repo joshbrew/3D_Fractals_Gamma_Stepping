@@ -18,12 +18,12 @@ document.querySelectorAll('#ui input[type=range]').forEach(slider => {
 });
 
 import * as THREE from 'three';
-import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
-import { PointerLockControls } from 'three/examples/jsm/controls/PointerLockControls.js';
+import { OrbitControls } from 'https://cdn.jsdelivr.net/npm/three@0.152.2/examples/jsm/controls/OrbitControls.js';
+import { PointerLockControls } from 'https://cdn.jsdelivr.net/npm/three@0.152.2/examples/jsm/controls/PointerLockControls.js';
 /* ------- constants (unchanged) ------- */
 let gridSize = 800, zMin = 0, zMax = 2, dz = .02, numLayers = Math.round((zMax - zMin) / dz) + 1, dx = 0, dy = 0;
 let ptsPerLayer = gridSize * gridSize, zoom = 4, escapeR = 4, maxIter = 100;
-let MAX_WORKERS = Math.min(navigator.hardwareConcurrency || 4, 8);
+let MAX_WORKERS = Math.max(navigator.hardwareConcurrency || 4, 4);
 let scaleM = 1;
 let totalPts = ptsPerLayer * numLayers;                  // initialise count s
 /* ------- UI refs ------- */
@@ -60,10 +60,28 @@ const pEsc = $('pEsc');
 const pIter = $('pIter');
 const pDx = $('pDx');
 const pDy = $('pDy');
+const applyParams = $('applyParams');
 const scaleMode = $('scaleMode');
 const resetAll = $('resetAll');
-const applyParams = $('applyParams');
+const hueOffset = $('hueOffset');
+const hueOffsetVal = $('hueOffsetVal');
 
+let _hueAutoMode = 2;
+
+// make the label clickable
+hueOffsetVal.style.cursor = 'pointer';
+hueOffsetVal.title = 'Click to toggle hue animation:\n▶ then ◀ then ■';
+
+// cycle mode on click
+hueOffsetVal.addEventListener('click', () => {
+  _hueAutoMode = (_hueAutoMode + 1) % 3;
+  // optional: change label color/icon based on mode
+  switch (_hueAutoMode) {
+    case 0: hueOffsetVal.textContent = hueOffset.value + '°'; break;
+    case 1: hueOffsetVal.textContent = hueOffset.value + '°'; break;
+    case 2: hueOffsetVal.textContent = hueOffset.value + '°'; break;
+  }
+});
 
 // const pJuliaMode = $('pJuliaMode'),
 //   pJuliaRe = $('pJuliaRe'),
@@ -79,17 +97,21 @@ const defaults = {
   layers: +layerVis.value,
   ptSize: +ptSize.value,
   zScale: +zScale.value,
-
+  hueOffset: +hueOffset.value,
   /* render-parameter <input type="number"> fields ------------------ */
   grid: +pGrid.value,
   zMin: +pZmin.value, zMax: +pZmax.value, dz: +pDz.value,
   zoom: +pZoom.value, escR: +pEsc.value, iter: +pIter.value,
-  dx: +pDx.value, dy: +pDy.value, scaleMode:scaleMode.value,
+  dx: +pDx.value, dy: +pDy.value, scaleMode,
   // juliaMode: pJuliaMode.checked,
   // juliaRe: +pJuliaRe.value,
   // juliaIm: +pJuliaIm.value
 };
 
+function setSlider(sl, v) {
+  sl.value = v;
+  paintRange(sl);
+}
 
 /* ================================================================ *
 *  RESET ↩︎  — restores every slider / number box to its default    *
@@ -113,7 +135,6 @@ resetAll.addEventListener('click', () => {
   pZmin.value = defaults.zMin; pZmax.value = defaults.zMax; pDz.value = defaults.dz;
   pZoom.value = defaults.zoom; pEsc.value = defaults.escR; pIter.value = defaults.iter;
   pDx.value = defaults.dx; pDy.value = defaults.dy;
-  scaleMode.value = defaults.scaleMode;
   // pJuliaMode.checked = defaults.juliaMode;
   // pJuliaRe.value = defaults.juliaRe;
   // pJuliaIm.value = defaults.juliaIm;
@@ -135,15 +156,15 @@ resetAll.addEventListener('click', () => {
   rebuildScene();                // full recompute & redraw
 });
 
+
 /* keep the object exactly as you already had it ------------------------- */
 const ui = {
   fractal: fractalType, scheme: colorScheme, alpha: alphaMode, basis: thresholdBasis,
-  low: lowThresh, high: highThresh, lowVal, highVal,
+  low: lowThresh, high: highThresh, lowVal, highVal, hueOffset,
   clipX, clipY, clipZ, clipXVal, clipYVal, clipZVal,
-  layerVis, layerVal, ptSize, ptVal, loading, pDx, pDy, scaleMode,
+  layerVis, layerVal, ptSize, ptVal, loading, pDx, pDy, scaleMode: scaleMode,
   pGrid, pZmin, pZmax, pDz, pZoom, pEsc, pIter, apply: applyParams
 };
-
 /* ------- THREE setup (identical) ------- */
 let scene = new THREE.Scene();
 let camera = new THREE.PerspectiveCamera(60, innerWidth / innerHeight, .1, 1000);
@@ -171,6 +192,7 @@ const uniforms = {
   worldCell: { value: zoom / (gridSize - 1) },
   pointScale: { value: +ui.ptSize.value },
   zGap: { value: +zScale.value },
+  hueOffset: { value: 0.0 },
   viewport: { value: new THREE.Vector2(innerWidth, innerHeight) }
 };
 
@@ -208,7 +230,7 @@ varying float vR, vL;
 uniform float lowT, highT;
 uniform int   alphaMode, basis, scheme;
 uniform float clipX, clipY, clipZ, worldCell, zGap;
-
+uniform float hueOffset;
 /* ---------- helpers ---------- */
 vec3 hsl2rgb (vec3 hsl) {
 float H = hsl.x, S = hsl.y, L = hsl.z;
@@ -234,184 +256,185 @@ return (cut >= 1.999)
 
 /* ---------- main ---------- */
 void main () {
-  float a = 1.0;
-  if (alphaMode == 1)      a = vR;
-  else if (alphaMode == 2) a = 1.0 - vR;
+float a = 1.0;
+if (alphaMode == 1)      a = vR;
+else if (alphaMode == 2) a = 1.0 - vR;
 
-  /* apply X/Y/Z clip gates */
-  a *= clipGate(vW.x, clipX)
-     * clipGate(vW.y, clipY)
-     * clipGate(vW.z / zGap + 1.0, clipZ);
+/* apply X/Y/Z clip gates */
+a *= clipGate(vW.x, clipX)
+ * clipGate(vW.y, clipY)
+ * clipGate(vW.z / zGap + 1.0, clipZ);
 
-  float val = (basis == 1 ? vL : vR);
-  if (val < lowT || val > highT || a < 0.01) discard;
+float val = (basis == 1 ? vL : vR);
+if (val < lowT || val > highT || a < 0.01) discard;
 
-  float r = vR, H, L;
+float r = vR, H, L;
 
 
-      if(scheme==0){                       /* Violet-Cyan-White */
-        H = (260.0 - 260.0*pow(r,0.9)) / 360.0;
-        L = (10.0  + 65.0 *pow(r,1.2)) / 100.0;
+  if(scheme==0){                       /* Violet-Cyan-White */
+    H = (260.0 - 260.0*pow(r,0.9)) / 360.0;
+    L = (10.0  + 65.0 *pow(r,1.2)) / 100.0;
 
-      }else if(scheme==1){                 /* Fire */
-        H = ( 0.0 + 60.0*r) / 360.0;
-        L = 0.50 + 0.50*r;
+  }else if(scheme==1){                 /* Fire */
+    H = ( 0.0 + 60.0*r) / 360.0;
+    L = 0.50 + 0.50*r;
 
-      }else if(scheme==2){                 /* Ice */
-        H = (200.0 - 100.0*r) / 360.0;
-        L = 0.30 + 0.70*r;
+  }else if(scheme==2){                 /* Ice */
+    H = (200.0 - 100.0*r) / 360.0;
+    L = 0.30 + 0.70*r;
 
-      }else if(scheme==3){                 /* Sunset */
-        H = ( 30.0 + 270.0*r) / 360.0;
-        L = 0.30 + 0.40*r;
+  }else if(scheme==3){                 /* Sunset */
+    H = ( 30.0 + 270.0*r) / 360.0;
+    L = 0.30 + 0.40*r;
 
-      }else if(scheme==4){                 /* Forest */
-        H = (120.0 -  90.0*r) / 360.0;
-        L = 0.20 + 0.50*r;
+  }else if(scheme==4){                 /* Forest */
+    H = (120.0 -  90.0*r) / 360.0;
+    L = 0.20 + 0.50*r;
 
-      }else if(scheme==5){                 /* Neon */
-        H = (300.0 - 240.0*r) / 360.0;
-        L = 0.55 + 0.20*sin(r*3.14159);
+  }else if(scheme==5){                 /* Neon */
+    H = (300.0 - 240.0*r) / 360.0;
+    L = 0.55 + 0.20*sin(r*3.14159);
 
-      }else if(scheme==6){                 /* Grayscale */
-        gl_FragColor = vec4(vec3(r), a);
-        return;
+  }else if(scheme==6){                 /* Grayscale */
+    gl_FragColor = vec4(vec3(r), a);
+    return;
 
-      /* --- retuned Inferno (dark purple → red → gold, no green cast) --- */
-      }else if(scheme==7){
-        H = (10.0 + 60.0*pow(r,1.2)) / 360.0;   // 10°→70°
-        L = 0.15 + 0.75*pow(r,1.5);
+  /* --- retuned Inferno (dark purple → red → gold, no green cast) --- */
+  }else if(scheme==7){
+    H = (10.0 + 60.0*pow(r,1.2)) / 360.0;   // 10°→70°
+    L = 0.15 + 0.75*pow(r,1.5);
 
-      /* --- rainbow & pastel gimmicks --- */
-      }else if(scheme==8){                      /* Rainbow 360° */
-        H = r;
-        L = 0.45 + 0.25*(1.0 - r);
+  /* --- rainbow & pastel gimmicks --- */
+  }else if(scheme==8){                      /* Rainbow 360° */
+    H = r;
+    L = 0.45 + 0.25*(1.0 - r);
 
-      }else if(scheme==9){                      /* Rainbow 720° */
-        H = mod(2.0*r, 1.0);
-        L = 0.50;
+  }else if(scheme==9){                      /* Rainbow 720° */
+    H = mod(2.0*r, 1.0);
+    L = 0.50;
 
-      }else if(scheme==10){                     /* Pastel loop */
-        H = mod(3.0*r + 0.1, 1.0);
-        L = 0.65;
+  }else if(scheme==10){                     /* Pastel loop */
+    H = mod(3.0*r + 0.1, 1.0);
+    L = 0.65;
 
-      }else if(scheme==11){                     /* Viridis-ish */
-        H = 0.75 - 0.55*r;                      // 270°→72°
-        L = 0.25 + 0.55*r*r;
+  }else if(scheme==11){                     /* Viridis-ish */
+    H = 0.75 - 0.55*r;                      // 270°→72°
+    L = 0.25 + 0.55*r*r;
 
-      /* --- NEW darker / cooler palettes --- */
-      }else if(scheme==12){                     /* Magma */
-        H = (5.0 + 70.0*r) / 360.0;             // deep plum → yellow-orange
-        L = 0.10 + 0.80*pow(r,1.4);
+  /* --- NEW darker / cooler palettes --- */
+  }else if(scheme==12){                     /* Magma */
+    H = (5.0 + 70.0*r) / 360.0;             // deep plum → yellow-orange
+    L = 0.10 + 0.80*pow(r,1.4);
 
-      }else if(scheme==13){                     /* Plasma */
-        H = (260.0 - 260.0*r) / 360.0;          // purple → yellow
-        L = 0.30 + 0.60*pow(r,0.8);
+  }else if(scheme==13){                     /* Plasma */
+    H = (260.0 - 260.0*r) / 360.0;          // purple → yellow
+    L = 0.30 + 0.60*pow(r,0.8);
 
-      }else if(scheme==14){                     /* Cividis */
-        H = (230.0 - 160.0*r) / 360.0;          // blue-green → orange
-        L = 0.25 + 0.60*r;
+  }else if(scheme==14){                     /* Cividis */
+    H = (230.0 - 160.0*r) / 360.0;          // blue-green → orange
+    L = 0.25 + 0.60*r;
 
-      }else if(scheme==15){                     /* Ocean */
-        H = (200.0 + 40.0*r) / 360.0;           // teal → azure
-        L = 0.20 + 0.50*r;
+  }else if(scheme==15){                     /* Ocean */
+    H = (200.0 + 40.0*r) / 360.0;           // teal → azure
+    L = 0.20 + 0.50*r;
 
-      }else if(scheme==16){                     /* Midnight Blue */
-        H = 0.6;                               // ~250°
-        L = 0.15 + 0.35*r;
+  }else if(scheme==16){                     /* Midnight Blue */
+    H = 0.6;                               // ~250°
+    L = 0.15 + 0.35*r;
 
-      }else if(scheme==17){                     /* Cool-Warm diverging */
-        H = r < 0.5
-            ? mix(0.55, 0.75, r*2.0)            // cyan-blue branch
-            : mix(0.02, 0.11, (r-0.5)*2.0);     // orange-red branch
-        L = 0.25 + 0.55*abs(r-0.5);
+  }else if(scheme==17){                     /* Cool-Warm diverging */
+    H = r < 0.5
+        ? mix(0.55, 0.75, r*2.0)            // cyan-blue branch
+        : mix(0.02, 0.11, (r-0.5)*2.0);     // orange-red branch
+    L = 0.25 + 0.55*abs(r-0.5);
 
-      /* fallback: old Inferno-style if scheme out of range */
-      }
-      else if (scheme == 18) {                    /* Rainbow 1080° (3 loops) */
-        H = mod(r * 3.0, 1.0);
-        L = 0.50 + 0.25*(1.0 - r);
-      }
-      else if (scheme == 19) {                    /* Rainbow 1440° (4 loops) */
-        H = mod(r * 4.0, 1.0);
-        L = 0.50;
-      }
-      else if (scheme == 20) {                    /* Pastel 5-loop */
-        H = mod(r * 5.0 + 0.2, 1.0);
-        L = 0.65;
-      }
-      else if (scheme == 21) {                    /* Thermal (blue→red) */
-        H = (240.0 - 240.0 * r) / 360.0;
-        L = 0.30 + 0.40 * r;
-      }
-      else if (scheme == 22) {                    /* Turbulent wave */
-        H = mod(r * 6.0 + sin(r * 10.0), 1.0);
-        L = 0.40 + 0.30 * sin(r * 20.0);
-      }
-      else if (scheme == 23) {                    /* Autumn (gold→rust) */
-        H = (30.0 + 50.0 * r) / 360.0;
-        L = 0.45 + 0.30 * r;
-      }
-      else if (scheme == 24) {                    /* Spring (emerald→rose) */
-        H = (90.0 - 80.0 * r) / 360.0;
-        L = 0.50 + 0.40 * r;
-      }
-      else if (scheme == 25) {                    /* Summer (lime→teal) */
-        H = (100.0 - 100.0 * r) / 360.0;
-        L = 0.40 + 0.50 * r;
-      }
-      else if (scheme == 26) {                    /* Mono-loop (10× grayscale flicker) */
-        float loop = mod(r * 10.0, 1.0);
-        float L = loop * 0.8;
-        // zero saturation → grayscale
-        vec3 col = hsl2rgb(vec3(0.0, 0.0, L));
-        gl_FragColor = vec4(col, a);
-        return;
-      }
-      else if (scheme == 27) {                    /* High-contrast diverging */
-        H = r < 0.5
-            ? mix(0.80, 0.40, r * 2.0)
-            : mix(0.10, 0.00, (r - 0.5) * 2.0);
-        L = 0.20 + 0.60 * abs(r - 0.5);
-      }
-      else if (scheme == 28) {                    /* Sine-wave hue */
-        H = mod(sin(r * 6.28318) * 0.5 + 0.5, 1.0);
-        L = 0.50;
-      }
-      else if (scheme == 29) {                    /* Sawtooth loop (3×) */
-        H = fract(r * 3.0);
-        L = fract(r * 3.0);
-      }
-      else if (scheme == 30) {                    /* Rainbow 2160° (6 loops) */
-        H = mod(r * 6.0, 1.0);
-        // pulsating brightness every half-loop
-        L = 0.45 + 0.40 * abs(sin(r * 6.0 * 3.14159));
-      }
-      else if (scheme == 31) {                    /* Triangle-wave 8 loops */
-        float t = fract(r * 8.0);
-        // ramp up then down each loop
-        H = t < 0.5
-            ? (t * 2.0)
-            : (1.0 - t) * 2.0;
-        // dip in the middle of each cycle
-        L = 0.60 - 0.30 * abs(t - 0.5);
-      }
-      else if (scheme == 32) {                    /* Exponential 12 loops */
-        H = mod(pow(r, 0.7) * 12.0, 1.0);
-        // slow fade-in, sharp fall-off
-        L = 0.50 + 0.30 * pow(r, 1.2);
-      }
-      else if (scheme == 33) {                    /* Sawtooth 10 loops + offset */
-        H = fract(r * 10.0 + 0.3);
-        // linear brightening
-        L = 0.40 + 0.50 * r;
-      }
-      else{
-        H = (40.0 + 310.0*pow(r,1.3)) / 360.0;
-        L = 0.20 + 0.50*pow(r,0.8);
-      }
-      vec3 col = hsl2rgb(vec3(H, 1.0, L));
-      gl_FragColor = vec4(col, a);
+  /* fallback: old Inferno-style if scheme out of range */
+  }
+  else if (scheme == 18) {                    /* Rainbow 1080° (3 loops) */
+    H = mod(r * 3.0, 1.0);
+    L = 0.50 + 0.25*(1.0 - r);
+  }
+  else if (scheme == 19) {                    /* Rainbow 1440° (4 loops) */
+    H = mod(r * 4.0, 1.0);
+    L = 0.50;
+  }
+  else if (scheme == 20) {                    /* Pastel 5-loop */
+    H = mod(r * 5.0 + 0.2, 1.0);
+    L = 0.65;
+  }
+  else if (scheme == 21) {                    /* Thermal (blue→red) */
+    H = (240.0 - 240.0 * r) / 360.0;
+    L = 0.30 + 0.40 * r;
+  }
+  else if (scheme == 22) {                    /* Turbulent wave */
+    H = mod(r * 6.0 + sin(r * 10.0), 1.0);
+    L = 0.40 + 0.30 * sin(r * 20.0);
+  }
+  else if (scheme == 23) {                    /* Autumn (gold→rust) */
+    H = (30.0 + 50.0 * r) / 360.0;
+    L = 0.45 + 0.30 * r;
+  }
+  else if (scheme == 24) {                    /* Spring (emerald→rose) */
+    H = (90.0 - 80.0 * r) / 360.0;
+    L = 0.50 + 0.40 * r;
+  }
+  else if (scheme == 25) {                    /* Summer (lime→teal) */
+    H = (100.0 - 100.0 * r) / 360.0;
+    L = 0.40 + 0.50 * r;
+  }
+  else if (scheme == 26) {                    /* Mono-loop (10× grayscale flicker) */
+    float loop = mod(r * 10.0 + hueOffset, 1.0);
+    float L = loop * 0.8;
+    // zero saturation → grayscale
+    vec3 col = hsl2rgb(vec3(0.0, 0.0, L));
+    gl_FragColor = vec4(col, a);
+    return;
+  }
+  else if (scheme == 27) {                    /* High-contrast diverging */
+    H = r < 0.5
+        ? mix(0.80, 0.40, r * 2.0)
+        : mix(0.10, 0.00, (r - 0.5) * 2.0);
+    L = 0.20 + 0.60 * abs(r - 0.5);
+  }
+  else if (scheme == 28) {                    /* Sine-wave hue */
+    H = mod(sin(r * 6.28318) * 0.5 + 0.5, 1.0);
+    L = 0.50;
+  }
+  else if (scheme == 29) {                    /* Sawtooth loop (3×) */
+    H = fract(r * 3.0);
+    L = fract(r * 3.0);
+  }
+  else if (scheme == 30) {                    /* Rainbow 2160° (6 loops) */
+    H = mod(r * 6.0, 1.0);
+    // pulsating brightness every half-loop
+    L = 0.45 + 0.40 * abs(sin(r * 6.0 * 3.14159));
+  }
+  else if (scheme == 31) {                    /* Triangle-wave 8 loops */
+    float t = fract(r * 8.0);
+    // ramp up then down each loop
+    H = t < 0.5
+        ? (t * 2.0)
+        : (1.0 - t) * 2.0;
+    // dip in the middle of each cycle
+    L = 0.60 - 0.30 * abs(t - 0.5);
+  }
+  else if (scheme == 32) {                    /* Exponential 12 loops */
+    H = mod(pow(r, 0.7) * 12.0, 1.0);
+    // slow fade-in, sharp fall-off
+    L = 0.50 + 0.30 * pow(r, 1.2);
+  }
+  else if (scheme == 33) {                    /* Sawtooth 10 loops + offset */
+    H = fract(r * 10.0 + 0.3);
+    // linear brightening
+    L = 0.40 + 0.50 * r;
+  }
+  else{
+    H = (40.0 + 310.0*pow(r,1.3)) / 360.0;
+    L = 0.20 + 0.50*pow(r,0.8);
+  }
+  H = mod(H + hueOffset, 1.0);
+  vec3 col = hsl2rgb(vec3(H, 1.0, L));
+  gl_FragColor = vec4(col, a);
 }`
 });
 let points = new THREE.Points(geom, mat);
@@ -425,7 +448,8 @@ function upd() {
   uniforms.alphaMode.value = +ui.alpha.value;
   uniforms.basis.value = +ui.basis.value;
   uniforms.scheme.value = +ui.scheme.value;
-
+  uniforms.hueOffset.value = +hueOffset.value / 360.0;
+    hueOffsetVal.textContent  = hueOffset.value + '°';
   uniforms.clipX.value = +ui.clipX.value; ui.clipXVal.textContent = (+ui.clipX.value).toFixed(2);
   uniforms.clipY.value = +ui.clipY.value; ui.clipYVal.textContent = (+ui.clipY.value).toFixed(2);
   uniforms.clipZ.value = +ui.clipZ.value; ui.clipZVal.textContent = (+ui.clipZ.value).toFixed(2);
@@ -433,7 +457,7 @@ function upd() {
   uniforms.pointScale.value = +ui.ptSize.value; ui.ptVal.textContent = (+ui.ptSize.value).toFixed(2);
 }
 [ui.low, ui.high, ui.alpha, ui.basis, ui.scheme,
-ui.clipX, ui.clipY, ui.clipZ,
+ui.clipX, ui.clipY, ui.clipZ, ui.hueOffset,
 ui.ptSize, zScale].forEach(e => e.addEventListener('input', upd));
 upd();
 
@@ -722,6 +746,15 @@ let last = performance.now();
     geom.setDrawRange(0, revealPts | 0);
   }
 
+  if (_hueAutoMode !== 2) {
+    // step size (degrees per frame) — adjust as you like
+    const step = 1;
+    let v = +hueOffset.value;
+    v = (v + ( _hueAutoMode === 0 ? +step : -step ) + 360) % 360;
+    hueOffset.value = v;
+    upd();
+  }
+
   /* --- positional WASD in whichever mode we're in --- */
   if (move.f || move.b || move.l || move.r) {
     const step = WALK_SPEED * dt;
@@ -743,6 +776,7 @@ let last = performance.now();
     camera.position.add(delta);
     if (!inFPS) controls.target.add(delta);   // keep dolly motion in orbit mode
   }
+
 
   if (!inFPS) controls.update();
   renderer.render(scene, camera);

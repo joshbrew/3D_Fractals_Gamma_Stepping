@@ -41,6 +41,10 @@
           <option value="33">Sawtooth 10 loops + offset</option>
         </select>
       </label>
+      <label>Hue Rotate:
+        <input id="hueOffset" type="range" min="0" max="360" step="1" value="0">
+        <span id="hueOffsetVal">0°</span>
+      </label>
 
       <!-- alpha, thresholds, clip … -->
       <label>Alpha Mode:
@@ -127,6 +131,7 @@
             <option value="46">Scatter-Nova</option>
           </select>
         </label>
+        
         <label>Grid (px):<input id="pGrid" type="number" min="100" max="1200" step="50" value="800"></label>
         <label>zMin:<input id="pZmin" type="number" step="0.01" value="0"></label>
         <label>zMax:<input id="pZmax" type="number" step="0.01" value="2"></label>
