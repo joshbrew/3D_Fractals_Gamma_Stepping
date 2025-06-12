@@ -4,7 +4,8 @@ self.onmessage = e => {
         gridSize, k, zMin, dz, zoom, escapeR,
         maxIter, fractalType, dx = 0, dy = 0,
         juliaMode, juliaRe = 0.75, juliaIm = 0,
-        epsilon: epsIn = 1e-6, scaleMode = 1
+        epsilon: epsIn = 1e-6, scaleMode = 1, convergenceTest,
+        escapeMode  = 'converge'
     } = e.data;
 
     const N = gridSize * gridSize;
@@ -45,11 +46,21 @@ self.onmessage = e => {
                     computeFractal(fractalType, qx, qy, px, py, x0, y0, gamma, iter, scaleMode);
 
                 // convergence test
-                const dx_ = nx - qx, dy_ = ny - qy;
-                if (isNewton && dx_ * dx_ + dy_ * dy_ < epsilon) {
-                    qx = nx; qy = ny;
-                    iter++;
-                    break outer;
+                if((isNewton || convergenceTest)) {
+                  if (escapeMode === 'diverge') {
+                      // bail as soon as we overflow the escape radius
+                      if (nx*nx + ny*ny > escapeR2) {
+                          iter++;
+                          break outer;
+                      }
+                  } else {
+                      // convergence-mode: only stop when the iterate actually settles
+                       const dx_ = nx - qx, dy_ = ny - qy;
+                      if (dx_*dx_ + dy_*dy_ < epsilon) {
+                        iter++;
+                        break outer;
+                      }
+                  }
                 }
                 qx = nx; qy = ny;
                 px = npx; py = npy;
@@ -91,7 +102,18 @@ function invPower(qx, qy, p) {
 }
 
 function getInitialZ(type, x0, y0) {
-    if (type === 41) return [1, 0, 0, 0];   // Nova starts at 1+0i, px=py=0
+    if (
+      type === 26 || // Nova
+      type === 40 || // Tri-Nova
+      type === 41 || // Nova-Mandelbrot
+      type === 42 || // Nova-2
+      type === 43 || // Nova-2 (alt)
+      type === 44 || // Quartic-Nova
+      type === 45 || // Flower-Nova
+      type === 46    // Scatter-Nova
+    ) {
+      return [1, 0, 0, 0];
+    }
     if (type >= 30 && type <= 39) return [x0, y0, 0, 0]; // inverse families at c
     return [0, 0, 0, 0];                            // all others at 0
 }
@@ -276,11 +298,11 @@ function computeFractal(fractalType, qx, qy, px, py, cx, cy, gamma, iter, scaleM
             const sub = 0.04;                      // ← tweak to zoom further
 
             /* translate AND shrink the c-plane sample */
-            const dx = cx*sub + cx;
-            const dy = cy*sub + cy;
+            const dx = ccx * sub + cx;
+            const dy = ccy * sub + cy;
 
-            nx = a * a - b * b + dx * s;               // same Burning-Ship update
-            ny = 2.0 * a * b + dy * s;
+            nx = a*a - b*b + dx * s;               // same Burning-Ship update
+            ny = 2.0*a*b   + dy * s;
             break;
         }
 
@@ -341,11 +363,12 @@ function computeFractal(fractalType, qx, qy, px, py, cx, cy, gamma, iter, scaleM
         }
 
         /* -------- Man-o-War (needs previous-z, reuse Phoenix vars) ------------------ */
-        case 27: {                                // z² + c + z_{n-1}
-            nx = qx * qx - qy * qy + ccx + px;
-            ny = 2.0 * qx * qy + ccy + py;
-            px = qx; py = qy;                       // store prev-z
-            break;
+        case 27: { // z² + c + z_{n-1}
+          nx  = qx*qx - qy*qy + ccx + px;
+          ny  = 2.0*qx*qy     + ccy + py;
+          npx = qx;            // ← store current z for the next iteration
+          npy = qy;
+          break;
         }
         /*   30 – inv cubic   | 31 – inv quartic | … | 35 – inv octic   */
         case 30:
@@ -405,8 +428,8 @@ function computeFractal(fractalType, qx, qy, px, py, cx, cy, gamma, iter, scaleM
             nx = zx2 + ccx - 0.5 * px;              // Phoenix blend  λ = –0.5
             ny = zy2 + ccy - 0.5 * py;
 
-            px = qx;                               // save previous-z
-            py = qy;
+            npx = qx;                             // save previous-z
+            npy = qy;
             break;
         }
         case 40: { //Tri-Nova
@@ -612,7 +635,3 @@ function computeFractal(fractalType, qx, qy, px, py, cx, cy, gamma, iter, scaleM
 
     return { nx, ny, npx, npy };
 }
-
-
-
-export default self;

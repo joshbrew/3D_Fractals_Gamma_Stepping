@@ -67,6 +67,7 @@ const hueOffset = $('hueOffset');
 const hueOffsetVal = $('hueOffsetVal');
 const layerOffset = $('layerOffset');
 const layerOffsetVal = $('layerOffsetVal');
+const convergenceTest = $('convergenceTest');
 
 let _hueAutoMode = 2;
 
@@ -105,9 +106,8 @@ const defaults = {
   zMin: +pZmin.value, zMax: +pZmax.value, dz: +pDz.value,
   zoom: +pZoom.value, escR: +pEsc.value, iter: +pIter.value,
   dx: +pDx.value, dy: +pDy.value, scaleMode: +scaleMode.value,
-  hueOffset: hueOffset.value,
-  layers: +layerVis.value,
-  layerOff: +layerOffset.value
+  layerOff: +layerOffset.value,
+  convergenceTest: convergenceTest.checked
   // juliaMode: pJuliaMode.checked,
   // juliaRe: +pJuliaRe.value,
   // juliaIm: +pJuliaIm.value
@@ -140,6 +140,7 @@ resetAll.addEventListener('click', () => {
   pZoom.value = defaults.zoom; pEsc.value = defaults.escR; pIter.value = defaults.iter;
   pDx.value = defaults.dx; pDy.value = defaults.dy;
   scaleMode.value = defaults.scaleMode;
+  convergenceTest.checked = defaults.convergenceTest;
   setSlider(hueOffset, defaults.hueOffset); _hueAutoMode = 2;
   setSlider(layerOffset, defaults.layerOff);
   // pJuliaMode.checked = defaults.juliaMode;
@@ -171,7 +172,7 @@ const ui = {
   low: lowThresh, high: highThresh, lowVal, highVal, hueOffset,
   clipX, clipY, clipZ, clipXVal, clipYVal, clipZVal,
   layerVis, layerVal, ptSize, ptVal, loading, pDx, pDy, scaleMode: scaleMode,
-  pGrid, pZmin, pZmax, pDz, pZoom, pEsc, pIter, apply: applyParams
+  pGrid, pZmin, pZmax, pDz, pZoom, pEsc, pIter, apply: applyParams, convergenceTest
 };
 /* ------- THREE setup (identical) ------- */
 let scene = new THREE.Scene();
@@ -721,7 +722,7 @@ function launch() {
 
   w.postMessage({
     gridSize, k, zMin, dz, zoom, escapeR, maxIter, dx, dy,
-    fractalType: curFrac, scaleMode: scaleM
+    fractalType: curFrac, scaleMode: scaleM, convergenceTest:convergenceTest.checked
   });
 
   w.onmessage = ({ data: { k, pos, rat } }) => {
