@@ -10,6 +10,7 @@ Inspired by https://codepen.io/setz/pen/gbpXoqw which uses a funky gamma modifie
 
 See build/dist for a bundled (offline friendly) version
 
+![1](https://github.com/user-attachments/assets/0d34298b-2ffb-41d0-b0d8-74919b6703b2)
 ![image](https://github.com/user-attachments/assets/7e826dd6-e8fe-47e9-83cd-00d597d10fad)
 ![image](https://github.com/user-attachments/assets/65cc8ef6-3f6f-4b7f-998a-8e3b1be90ba3)
 ![image](https://github.com/user-attachments/assets/93cfd84f-77b0-405b-be9f-30e465bcfe14)
@@ -25,7 +26,6 @@ See build/dist for a bundled (offline friendly) version
 ![4](https://github.com/user-attachments/assets/7b6a22f6-3dea-4593-af37-e03be1802223)
 ![3](https://github.com/user-attachments/assets/d1975e5a-2b1a-419b-baff-39d42706c9dd)
 ![2](https://github.com/user-attachments/assets/b80452bc-cd6a-4650-8994-80448b22037a)
-![1](https://github.com/user-attachments/assets/0d34298b-2ffb-41d0-b0d8-74919b6703b2)
 
 
 How it works:
