@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Joshua Brewster – freeware. 3-D Fractal Point Cloud (~50 formulas, different palettes) -->
+<!-- Joshua Brewster – freeware. 3-D Fractal Point Cloud (14 formulas, 8 palettes) -->
 <html lang="en">
 
 <head>
@@ -244,8 +244,6 @@
           <option value="44">Quad-Nova</option>
           <option value="40">Inverse Tri-Nova</option>
           <option value="42">Inverse Tri-Nova 2</option>
-          <option value="45">Quartic Flower-Nova</option>
-          <option value="46">Scatter-Nova</option>
           <option value="27">Man-o-War</option>
           <option value="11">Heart</option>
           <option value="9">Cosine</option>
@@ -274,6 +272,8 @@
           <option value="36">Inverse Burning Ship (1/|z|² + c)</option>
           <option value="38">Inverse Celtic (|1/z|² + c)</option>
           <option value="39">Inverse Phoenix (1/z² – 0.5·z<sub>n–1</sub> + c)</option>
+          <option value="45">Quartic Flower-Nova</option>
+          <option value="46">Scatter-Nova</option>
         </select>
       </label>
 
@@ -344,7 +344,14 @@
         <label>maxIter:<input id="pIter" type="number" min="10" max="1000" step="10" value="100"></label>
         <label>dx (real):<input id="pDx" type="number" step="0.001" value="0"></label>
         <label>dy (imag):<input id="pDy" type="number" step="0.001" value="0"></label>
-<!--         <label>Julia Mode:
+        <label>Scale Mode:
+          <select id="scaleMode">
+            <option value="0">None</option>
+            <option value="1" selected>Multiply</option>
+            <option value="2">Divide</option>
+          </select>
+        </label>
+        <!--         <label>Julia Mode:
           <input id="pJuliaMode" type="checkbox">
         </label>
         <label>Julia Re:
@@ -409,7 +416,8 @@
 
           <dt><b>zMin / zMax</b></dt>
           <dd style="margin:0 0 .3rem 1.2rem;">
-            Starting and ending slice coordinates (before&nbsp;Z&nbsp;spacing). Range 0–2 maps into full fractal depth.
+            Starting and ending slice coordinates (before&nbsp;Z&nbsp;spacing). Range 0–2 maps into full fractal
+            depth.
           </dd>
 
           <dt><b>dz (step)</b></dt>
@@ -463,7 +471,7 @@
     let gridSize = 800, zMin = 0, zMax = 2, dz = .02, numLayers = Math.round((zMax - zMin) / dz) + 1, dx = 0, dy = 0;
     let ptsPerLayer = gridSize * gridSize, zoom = 4, escapeR = 4, maxIter = 100;
     let MAX_WORKERS = Math.max(navigator.hardwareConcurrency || 4, 4);
-
+    let scaleM = 1;
     let totalPts = ptsPerLayer * numLayers;                  // initialise count s
     /* ------- UI refs ------- */
     const $ = id => document.getElementById(id);
@@ -500,6 +508,7 @@
     const pDx = $('pDx');
     const pDy = $('pDy');
     const applyParams = $('applyParams');
+    const scaleMode = $('scaleMode');
     const resetAll = $('resetAll');
 
     // const pJuliaMode = $('pJuliaMode'),
@@ -521,7 +530,7 @@
       grid: +pGrid.value,
       zMin: +pZmin.value, zMax: +pZmax.value, dz: +pDz.value,
       zoom: +pZoom.value, escR: +pEsc.value, iter: +pIter.value,
-      dx: +pDx.value, dy: +pDy.value,
+      dx: +pDx.value, dy: +pDy.value, scaleMode,
       // juliaMode: pJuliaMode.checked,
       // juliaRe: +pJuliaRe.value,
       // juliaIm: +pJuliaIm.value
@@ -554,9 +563,9 @@
       pZmin.value = defaults.zMin; pZmax.value = defaults.zMax; pDz.value = defaults.dz;
       pZoom.value = defaults.zoom; pEsc.value = defaults.escR; pIter.value = defaults.iter;
       pDx.value = defaults.dx; pDy.value = defaults.dy;
-      pJuliaMode.checked = defaults.juliaMode;
-      pJuliaRe.value = defaults.juliaRe;
-      pJuliaIm.value = defaults.juliaIm;
+      // pJuliaMode.checked = defaults.juliaMode;
+      // pJuliaRe.value = defaults.juliaRe;
+      // pJuliaIm.value = defaults.juliaIm;
       /* update uniforms, ranges, on-screen numbers ------------------- */
       upd();
 
@@ -581,7 +590,7 @@
       fractal: fractalType, scheme: colorScheme, alpha: alphaMode, basis: thresholdBasis,
       low: lowThresh, high: highThresh, lowVal, highVal,
       clipX, clipY, clipZ, clipXVal, clipYVal, clipZVal,
-      layerVis, layerVal, ptSize, ptVal, loading, pDx, pDy,
+      layerVis, layerVal, ptSize, ptVal, loading, pDx, pDy, scaleMode:scaleMode,
       pGrid, pZmin, pZmax, pDz, pZoom, pEsc, pIter, apply: applyParams
     };
     /* ------- THREE setup (identical) ------- */
@@ -822,6 +831,7 @@ void main () {
       dx = +ui.pDx.value;
       dy = +ui.pDy.value;
       camera.position.set(0, -zoom * 1.5, zoom);
+      scaleM = +ui.scaleMode.value;
       rebuildScene();
     });
 
@@ -956,238 +966,264 @@ void main () {
 
     /* ---------- Worker code (14 formulas) ---------- */
     const workerSrc = `
+
+self.onmessage = e => {
+    const {
+        gridSize, k, zMin, dz, zoom, escapeR,
+        maxIter, fractalType, dx = 0, dy = 0,
+        juliaMode, juliaRe = 0.75, juliaIm = 0,
+        epsilon: epsIn = 1e-6, scaleMode = 1
+    } = e.data;
+
+    const N = gridSize * gridSize;
+    const pos = new Float32Array(N * 3);
+    const rat = new Float32Array(N);
+    const gamma = zMin + k * dz;
+    const epsilon = epsIn * zoom;
+    const invGrid = 1 / (gridSize - 1);
+    const escapeR2 = escapeR * escapeR;
+
+    let idx = 0;
+    for (let i = 0; i < gridSize; i++) {
+        const x0 = juliaMode
+            ? juliaRe
+            : ((i * invGrid - 0.5) * zoom + dx);
+
+        for (let j = 0; j < gridSize; j++) {
+            const y0 = juliaMode
+                ? juliaIm
+                : ((j * invGrid - 0.5) * zoom + dy);
+
+            let [qx, qy, px, py] = getInitialZ(fractalType, x0, y0);
+            let iter = 0;
+
+            outer:
+            while (qx * qx + qy * qy <= escapeR2 && iter < maxIter) {
+                const { nx, ny, npx, npy } =
+                    computeFractal(fractalType, qx, qy, px, py, x0, y0, gamma, iter, scaleMode);
+
+                // convergence test
+                const dx_ = nx - qx, dy_ = ny - qy;
+                if (dx_ * dx_ + dy_ * dy_ < epsilon) {
+                    qx = nx; qy = ny;
+                    iter++;
+                    break outer;
+                }
+                qx = nx; qy = ny;
+                px = npx; py = npy;
+                iter++;
+            }
+
+            const b = 3 * idx++;
+            pos[b] = x0;
+            pos[b + 1] = y0;
+            pos[b + 2] = gamma;
+            rat[idx - 1] = iter / maxIter;
+        }
+    }
+
+    self.postMessage({ k, pos: pos.buffer, rat: rat.buffer },
+        [pos.buffer, rat.buffer]);
+};
+
+
 /* ---------- Burning-Ship Multibrot helpers ---------- */
-function shipPower(ax, ay, p){           // |z|^p in polar coords
-  // r = sqrt(ax²+ay²)  ;  θ = atan2(ay, ax)
-  const r2 = ax*ax + ay*ay;
-  const r  = Math.pow(r2, 0.5 * p);      // r^p
-  const th = Math.atan2(ay, ax) * p;     // pθ
-  return [ r*Math.cos(th),               // Re part
-           r*Math.sin(th) ];             // Im part
+function shipPower(ax, ay, p) {           // |z|^p in polar coords
+    // r = sqrt(ax²+ay²)  ;  θ = atan2(ay, ax)
+    const r2 = ax * ax + ay * ay;
+    const r = Math.pow(r2, 0.5 * p);      // r^p
+    const th = Math.atan2(ay, ax) * p;     // pθ
+    return [r * Math.cos(th),               // Re part
+    r * Math.sin(th)];             // Im part
 }
 
 /* ---------- generic inverse-power helper ---------- */
-function invPower(qx, qy, p){
-  /* 1 / (qx + i qy)^p  via polar form */
-  const r2 = qx*qx + qy*qy + 1e-9;        // avoid /0
-  const rp = Math.pow(r2, p * 0.5);       // r^p
-  const th = Math.atan2(qy, qx) * p;      // p·θ
-  const rpInv = 1.0 / rp;                 // 1 / r^p
-  return [ rpInv * Math.cos(th),          // Re
-           -rpInv * Math.sin(th) ];       // Im  (negated ⇒ 1/z^p)
+function invPower(qx, qy, p) {
+    /* 1 / (qx + i qy)^p  via polar form */
+    const r2 = qx * qx + qy * qy + 1e-9;        // avoid /0
+    const rp = Math.pow(r2, p * 0.5);       // r^p
+    const th = Math.atan2(qy, qx) * p;      // p·θ
+    const rpInv = 1.0 / rp;                 // 1 / r^p
+    return [rpInv * Math.cos(th),          // Re
+    -rpInv * Math.sin(th)];       // Im  (negated ⇒ 1/z^p)
 }
 
+function getInitialZ(type, x0, y0) {
+    if (type === 41) return [1, 0, 0, 0];   // Nova starts at 1+0i, px=py=0
+    if (type >= 30 && type <= 39) return [x0, y0, 0, 0]; // inverse families at c
+    return [0, 0, 0, 0];                            // all others at 0
+}
 
-const SQRT2_INV = 1/Math.sqrt(2);
-const ROT45X =  0.7071067811865476;   //  cos 45°
-const ROT45Y = -0.7071067811865476;   // -sin 45°
+function computeFractal(fractalType, qx, qy, px, py, cx, cy, gamma, iter, scaleMode=1) {
+    const s = 1 + iter * (gamma - 1);
+    let ccx = cx, ccy = cy;
+    if(scaleMode === 1){
+        ccx*=s; ccy*=s;
+    } else if (scaleMode === 2) {
+        ccx/=s; ccy/=s;
+    }
+    const a = Math.abs(qx), b = Math.abs(qy);
+    let nx, ny, npx = px, npy = py;
 
-self.onmessage = e => {
-  const { gridSize, k, zMin, dz, zoom, escapeR, maxIter, fractalType, dx = 0, dy = 0,
-    juliaMode, juliaRe = 0.75, juliaIm = 0
-  } = e.data;
-  let epsilon = e.data.epsilon || 1e-6;
-  const N   = gridSize * gridSize;
-  const pos = new Float32Array(N * 3);
-  const rat = new Float32Array(N);
-  const gamma = zMin + k * dz; //permuation via gamma
-  epsilon *= zoom; //keep it scaling with zoom
-
-  let idx = 0;
-
-  const isInv = fractalType >= 30 && fractalType <= 39;   // true for new formulas
-  const invPowerP  = fractalType - 27; 
-
-  for (let i = 0; i < gridSize; i++) {
-    const x0 = juliaMode ? juliaRe : (i / (gridSize - 1) - 0.5) * zoom + dx;
-    for (let j = 0; j < gridSize; j++) {
-      const y0 = juliaMode ? juliaIm : (j / (gridSize - 1) - 0.5) * zoom + dy;
-
-      // Mandelbrot family starts at 0, inverse family starts at c
-      let qx, qy;
-      if (fractalType === 41) {
-        // Nova‐Mandelbrot starts at z₀ = 1 + 0i
-        qx = 1.0;
-        qy = 0.0;
-      } else if (fractalType >= 30 && fractalType <= 39) {
-        // inverse families start at c
-        qx = x0;
-        qy = y0;
-      } else {
-        // all other Mandelbrot types start at 0
-        qx = 0.0;
-        qy = 0.0;
-      }
-      let px = 0,  py = 0;      // prev-z for Phoenix / Man-o-War
-      let iter = 0;
-
-
-      outer:
-      while (qx*qx + qy*qy <= escapeR*escapeR && iter < maxIter) {
-        const s = 1 + iter * (gamma - 1);      // slice scaling
-        const a = Math.abs(qx);
-        const b = Math.abs(qy);
-
-        let nx, ny;
-
-        switch (fractalType) {
-          case 1:  // Tricorn
-            nx =  qx*qx - qy*qy + x0*s;
-            ny = -2*qx*qy      + y0*s;
+    switch (fractalType) {
+        case 1:  // Tricorn
+            nx = qx * qx - qy * qy + ccx;
+            ny = -2 * qx * qy + ccy;
             break;
 
-          case 2:  // Burning Ship
-            nx =  a*a - b*b + x0*s;
-            ny =  2*a*b     + y0*s;
+        case 2:  // Burning Ship
+            nx = a * a - b * b + ccx;
+            ny = 2 * a * b + ccy;
             break;
 
-          case 3:  // Perpendicular Mandelbrot
-            nx =  qx*qx - qy*qy + x0*s;
-            ny = -2*a*qy        + y0*s;
+        case 3:  // Perpendicular Mandelbrot
+            nx = qx * qx - qy * qy + ccx;
+            ny = -2 * a * qy + ccy;
             break;
 
-          case 4:  // Celtic
-            nx =  Math.abs(qx*qx - qy*qy) + x0*s;
-            ny =  2*qx*qy                + y0*s;
+        case 4:  // Celtic
+            nx = Math.abs(qx * qx - qy * qy) + ccx;
+            ny = 2 * qx * qy + ccy;
             break;
 
-          case 5:  // Buffalo
-            nx =  Math.abs(qx*qx - qy*qy) + x0*s;
-            ny = -2*qx*qy                + y0*s;
+        case 5:  // Buffalo
+            nx = Math.abs(qx * qx - qy * qy) + ccx;
+            ny = -2 * qx * qy + ccy;
             break;
 
-          case 6:  // Phoenix (λ = –0.5)
-            nx =  qx*qx - qy*qy + x0*s - 0.5*px;
-            ny =  2*qx*qy       + y0*s - 0.5*py;
-            px = qx;  py = qy;
+        case 6:  // Phoenix (λ = –0.5)
+            nx   = qx*qx - qy*qy + ccx - 0.5*px;
+            ny   = 2*qx*qy    + ccy - 0.5*py;
+            npx  = qx;      // ← store *this* iteration's z for the next round
+            npy  = qy;
             break;
 
-          case 7: { // Cubic Multibrot (z³ + c)
-            const r2    = qx*qx + qy*qy;
+        case 7: { // Cubic Multibrot (z³ + c)
+            const r2 = qx * qx + qy * qy;
             const theta = Math.atan2(qy, qx);
-            const r3    = Math.pow(r2, 1.5);        // r³
-            nx = r3 * Math.cos(3*theta) + x0*s;
-            ny = r3 * Math.sin(3*theta) + y0*s;
+            const r3 = Math.pow(r2, 1.5);        // r³
+            nx = r3 * Math.cos(3 * theta) + ccx;
+            ny = r3 * Math.sin(3 * theta) + ccy;
             break;
-          }
+        }
 
-          case 8: { // Quartic Multibrot (z⁴ + c)
-            const r2    = qx*qx + qy*qy;
+        case 8: { // Quartic Multibrot (z⁴ + c)
+            const r2 = qx * qx + qy * qy;
             const theta = Math.atan2(qy, qx);
-            const r4    = r2 * r2;                  // r⁴
-            nx = r4 * Math.cos(4*theta) + x0*s;
-            ny = r4 * Math.sin(4*theta) + y0*s;
+            const r4 = r2 * r2;                  // r⁴
+            nx = r4 * Math.cos(4 * theta) + ccx;
+            ny = r4 * Math.sin(4 * theta) + ccy;
             break;
-          }
+        }
 
-          case 9:  // Cosine
-            nx =  Math.cos(qx) * Math.cosh(qy)  + x0*s;
-            ny = -Math.sin(qx) * Math.sinh(qy)  + y0*s;
-            break;
-
-          case 10: // Sine
-            nx =  Math.sin(qx) * Math.cosh(qy)  + x0*s;
-            ny =  Math.cos(qx) * Math.sinh(qy)  + y0*s;
+        case 9:  // Cosine
+            nx = Math.cos(qx) * Math.cosh(qy) + ccx;
+            ny = -Math.sin(qx) * Math.sinh(qy) + ccy;
             break;
 
-          case 11: {         // Heart
+        case 10: // Sine
+            nx = Math.sin(qx) * Math.cosh(qy) + ccx;
+            ny = Math.cos(qx) * Math.sinh(qy) + ccy;
+            break;
+
+        case 11: {         // Heart
             // z_{n+1} = (|Re(z_n)| + i·Im(z_n))^2 + c
             const rx = Math.abs(qx);          // ⎯ only real part
-            nx = rx*rx - qy*qy + x0*s;
-            ny = 2*rx*qy      + y0*s;
+            nx = rx * rx - qy * qy + ccx;
+            ny = 2 * rx * qy + ccy;
             break;
-          }
+        }
 
-          case 12: // Perpendicular Buffalo
-            nx =  Math.abs(qx*qx - qy*qy) + x0*s;
-            ny = -2*a*qy                 + y0*s;
+        case 12: // Perpendicular Buffalo
+            nx = Math.abs(qx * qx - qy * qy) + ccx;
+            ny = -2 * a * qy + ccy;
             break;
 
-           /* -------- Spiral Mandelbrot (simple quadratic with a twist) ----------------- */
-           case 13: {                         
-              const THETA   = 0.35+2*gamma;            // per-layer twist
-              const wRe = Math.cos(THETA);
-              const wIm = Math.sin(THETA);
+        /* -------- Spiral Mandelbrot (simple quadratic with a twist) ----------------- */
+        case 13: {
+            const THETA = 0.35 + 2 * gamma;            // per-layer twist
+            const wRe = Math.cos(THETA);
+            const wIm = Math.sin(THETA);
 
-              /* z²  (= qx²-qy²  +  i·2qxqy) */
-              const zx2 = qx*qx - qy*qy;
-              const zy2 = 2.0*qx*qy;
+            /* z²  (= qx²-qy²  +  i·2qxqy) */
+            const zx2 = qx * qx - qy * qy;
+            const zy2 = 2.0 * qx * qy;
 
-              /* w·z²  (complex multiply) */
-              const tx = wRe*zx2 - wIm*zy2;
-              const ty = wRe*zy2 + wIm*zx2;
+            /* w·z²  (complex multiply) */
+            const tx = wRe * zx2 - wIm * zy2;
+            const ty = wRe * zy2 + wIm * zx2;
 
-              nx = tx + x0*s;
-              ny = ty + y0*s;
-              break;
-           }
-            
-           case 14: {                        // Quintic Multibrot  (z^5 + c)
-              const r2    = qx*qx + qy*qy;
-              const theta = Math.atan2(qy, qx);
-              const r5    = Math.pow(r2, 2.5);           // r^(5/2)
-              nx = r5 * Math.cos(5*theta) + x0*s;
-              ny = r5 * Math.sin(5*theta) + y0*s;
-              break;
-           }
+            nx = tx + ccx;
+            ny = ty + ccy;
+            break;
+        }
 
-           case 15: {                        // Sextic Multibrot   (z^6 + c)
-              const r2    = qx*qx + qy*qy;
-              const theta = Math.atan2(qy, qx);
-              const r6    = r2 * r2 * r2;                   // r^3, then squared → r^6
-              nx = r6 * Math.cos(6*theta) + x0*s;
-              ny = r6 * Math.sin(6*theta) + y0*s;
-              break;
-           }
-
-           case 16: {                        // Tangent fractal    (tan z + c)
-              // tan(x+iy) = (sin2x + i sinh2y) / (cos2x + cosh2y)
-              const sin2x = Math.sin(2*qx);
-              const sinh2y= Math.sinh(2*qy);
-              const denom = Math.cos(2*qx) + Math.cosh(2*qy) + 1e-9; // avoid /0
-              nx = sin2x / denom + x0*s;
-              ny = sinh2y/ denom + y0*s;
-              break;
-           }
-
-           case 17: {                        // Exponential fractal (exp z + c)
-              const ex = Math.exp(qx);
-              nx = ex * Math.cos(qy) + x0*s;
-              ny = ex * Math.sin(qy) + y0*s;
-              break;
-           }
-            
-          case 18: {                      // Septic Multibrot (z^7 + c)
-            const r2    = qx*qx + qy*qy;
+        case 14: {                        // Quintic Multibrot  (z^5 + c)
+            const r2 = qx * qx + qy * qy;
             const theta = Math.atan2(qy, qx);
-            const r7    = Math.pow(r2, 3.5);          // r^(7/2)
-            nx = r7 * Math.cos(7*theta) + x0*s;
-            ny = r7 * Math.sin(7*theta) + y0*s;
+            const r5 = Math.pow(r2, 2.5);           // r^(5/2)
+            nx = r5 * Math.cos(5 * theta) + ccx;
+            ny = r5 * Math.sin(5 * theta) + ccy;
             break;
-          }
+        }
 
-          case 19: {                      // Octic Multibrot (z^8 + c)
-            const r2    = qx*qx + qy*qy;
+        case 15: {                        // Sextic Multibrot   (z^6 + c)
+            const r2 = qx * qx + qy * qy;
             const theta = Math.atan2(qy, qx);
-            const r8    = r2*r2*r2*r2;                  // r^8
-            nx = r8 * Math.cos(8*theta) + x0*s;
-            ny = r8 * Math.sin(8*theta) + y0*s;
+            const r6 = r2 * r2 * r2;                   // r^3, then squared → r^6
+            nx = r6 * Math.cos(6 * theta) + ccx;
+            ny = r6 * Math.sin(6 * theta) + ccy;
             break;
-          }
+        }
 
-          case 20: {                      // Inverse Mandelbrot (1/z^2 + c)
-             const r2  = qx*qx + qy*qy + 1e-9;   // avoid /0
-              const inv = 1.0 / (r2*r2);          // 1 / |z|⁴
+        case 16: {                        // Tangent fractal    (tan z + c)
+            // tan(x+iy) = (sin2x + i sinh2y) / (cos2x + cosh2y)
+            const sin2x = Math.sin(2 * qx);
+            const sinh2y = Math.sinh(2 * qy);
+            const denom = Math.cos(2 * qx) + Math.cosh(2 * qy) + 1e-9; // avoid /0
+            nx = sin2x / denom + ccx;
+            ny = sinh2y / denom + ccy;
+            break;
+        }
 
-              // real part is unchanged
-              nx = ( qx*qx - qy*qy) * inv + x0 * s;
+        case 17: {                        // Exponential fractal (exp z + c)
+            const ex = Math.exp(qx);
+            nx = ex * Math.cos(qy) + ccx;
+            ny = ex * Math.sin(qy) + ccy;
+            break;
+        }
 
-              // *** sign is now POSITIVE ***
-              ny = ( 2*qx*qy       ) * inv + y0 * s;
-              break;
-          }
-          
-          case 21: {   // Burning Ship  – deep zoom on the forward tip
+        case 18: {                      // Septic Multibrot (z^7 + c)
+            const r2 = qx * qx + qy * qy;
+            const theta = Math.atan2(qy, qx);
+            const r7 = Math.pow(r2, 3.5);          // r^(7/2)
+            nx = r7 * Math.cos(7 * theta) + ccx;
+            ny = r7 * Math.sin(7 * theta) + ccy;
+            break;
+        }
+
+        case 19: {                      // Octic Multibrot (z^8 + c)
+            const r2 = qx * qx + qy * qy;
+            const theta = Math.atan2(qy, qx);
+            const r8 = r2 * r2 * r2 * r2;                  // r^8
+            nx = r8 * Math.cos(8 * theta) + ccx;
+            ny = r8 * Math.sin(8 * theta) + ccy;
+            break;
+        }
+
+        case 20: {                      // Inverse Mandelbrot (1/z^2 + c)
+            const r2 = qx * qx + qy * qy + 1e-9;   // avoid /0
+            const inv = 1.0 / (r2 * r2);          // 1 / |z|⁴
+
+            // real part is unchanged
+            nx = (qx * qx - qy * qy) * inv + ccx;
+
+            // *** sign is now POSITIVE ***
+            ny = (2 * qx * qy) * inv + ccy;
+            break;
+        }
+
+        case 21: {   // Burning Ship  – deep zoom on the forward tip
             /*  centre of the tiny replica (credit: Hofstadter needles list)
                 approximately  (–1.7443359375 , –0.017451171875)           */
             const cx = -1.7443359375;
@@ -1197,188 +1233,178 @@ self.onmessage = e => {
             const sub = 0.04;                      // ← tweak to zoom further
 
             /* translate AND shrink the c-plane sample */
-            const dx = x0 * sub + cx;
-            const dy = y0 * sub + cy;
+            const dx = cx*sub + cx;
+            const dy = cy*sub + cy;
 
-            nx = a*a - b*b + dx * s;               // same Burning-Ship update
-            ny = 2.0*a*b   + dy * s;
+            nx = a * a - b * b + dx * s;               // same Burning-Ship update
+            ny = 2.0 * a * b + dy * s;
             break;
-          }
-          
+        }
+
         case 22: {  // Cubic Burning Ship  |z|³ + c
-          const [rx, ry] = shipPower(a, b, 3.0);
-          nx =  rx + x0*s;
-          ny =  ry + y0*s;
-          break;
+            const [rx, ry] = shipPower(a, b, 3.0);
+            nx = rx + ccx;
+            ny = ry + ccy;
+            break;
         }
 
         case 23: {  // Quartic Burning Ship |z|⁴ + c
-          const [rx, ry] = shipPower(a, b, 4.0);
-          nx =  rx + x0*s;
-          ny =  ry + y0*s;
-          break;
+            const [rx, ry] = shipPower(a, b, 4.0);
+            nx = rx + ccx;
+            ny = ry + ccy;
+            break;
         }
 
         case 24: {  // Quintic Burning Ship |z|⁵ + c
-          const [rx, ry] = shipPower(a, b, 5.0);
-          nx =  rx + x0*s;
-          ny =  ry + y0*s;
-          break;
+            const [rx, ry] = shipPower(a, b, 5.0);
+            nx = rx + ccx;
+            ny = ry + ccy;
+            break;
         }
 
         case 25: {  // Hexic Burning Ship  |z|⁶ + c
-          const [rx, ry] = shipPower(a, b, 6.0);
-          nx =  rx + x0*s;
-          ny =  ry + y0*s;
-          break;
+            const [rx, ry] = shipPower(a, b, 6.0);
+            nx = rx + ccx;
+            ny = ry + ccy;
+            break;
         }
-        
+
         /* -------- Nova fractal (Newton method blend) -------------------------------- */
         case 26: {                                // z − (z³ − 1)/(3 z²) + c
-          /* z² */
-          const zx2 = qx*qx - qy*qy,
-                zy2 = 2.0*qx*qy;
+            /* z² */
+            const zx2 = qx * qx - qy * qy,
+                zy2 = 2.0 * qx * qy;
 
-          /* z³ = z²·z */
-          const zx3 = zx2*qx - zy2*qy,
-                zy3 = zx2*qy + zy2*qx;
+            /* z³ = z²·z */
+            const zx3 = zx2 * qx - zy2 * qy,
+                zy3 = zx2 * qy + zy2 * qx;
 
-          /* numerator (z³ − 1) */
-          const numx = zx3 - 1.0,
+            /* numerator (z³ − 1) */
+            const numx = zx3 - 1.0,
                 numy = zy3;
 
-          /* denominator 3 z² */
-          const denx = 3.0*zx2,
-                deny = 3.0*zy2;
-          const den2 = denx*denx + deny*deny + 1e-9;     // avoid /0
+            /* denominator 3 z² */
+            const denx = 3.0 * zx2,
+                deny = 3.0 * zy2;
+            const den2 = denx * denx + deny * deny + 1e-9;     // avoid /0
 
-          /* (z³−1)/(3 z²) */
-          const qxDiv = (numx*denx + numy*deny)/den2;
-          const qyDiv = (numy*denx - numx*deny)/den2;
+            /* (z³−1)/(3 z²) */
+            const qxDiv = (numx * denx + numy * deny) / den2;
+            const qyDiv = (numy * denx - numx * deny) / den2;
 
-          nx = qx - qxDiv + x0*s;
-          ny = qy - qyDiv + y0*s;
-          break;
+            nx = qx - qxDiv + ccx;
+            ny = qy - qyDiv + ccy;
+            break;
         }
 
         /* -------- Man-o-War (needs previous-z, reuse Phoenix vars) ------------------ */
         case 27: {                                // z² + c + z_{n-1}
-          nx = qx*qx - qy*qy + x0*s + px;
-          ny = 2.0*qx*qy     + y0*s + py;
-          px = qx;  py = qy;                       // store prev-z
-          break;
+            nx = qx * qx - qy * qy + ccx + px;
+            ny = 2.0 * qx * qy + ccy + py;
+            px = qx; py = qy;                       // store prev-z
+            break;
         }
-         /*   30 – inv cubic   | 31 – inv quartic | … | 35 – inv octic   */
+        /*   30 – inv cubic   | 31 – inv quartic | … | 35 – inv octic   */
         case 30:
         case 31:
         case 32:
         case 33:
         case 34:
         case 35: {
-          const p   = invPowerP;                        // 3 … 8
-          const r2  = qx*qx + qy*qy + 1e-12;            // tiny ε avoids /0
-          const rp  = Math.pow(r2, -p * 0.5);           // 1 / r^p
-          const ang = -p * Math.atan2(qy, qx);          // −p·θ   (minus sign = reciprocal)
-          const rx  = rp * Math.cos(ang);
-          const ry  = rp * Math.sin(ang);
-          nx = rx + x0 * s;
-          ny = ry + y0 * s;
-          break;
+            const p = invPowerP;                        // 3 … 8
+            const r2 = qx * qx + qy * qy + 1e-12;            // tiny ε avoids /0
+            const rp = Math.pow(r2, -p * 0.5);           // 1 / r^p
+            const ang = -p * Math.atan2(qy, qx);          // −p·θ   (minus sign = reciprocal)
+            const rx = rp * Math.cos(ang);
+            const ry = rp * Math.sin(ang);
+            nx = rx + ccx;
+            ny = ry + ccy;
+            break;
         }
         /* ---------- 36 : Inverse Burning-Ship (reciprocal variant) -------- */
         case 36: {              //  1 / (|z|²)      + c
-          const a = Math.abs(qx), b = Math.abs(qy);
-          const r2 = qx*qx + qy*qy + 1e-9;          // avoid /0
-          const inv = 1.0 / (r2*r2);                // 1 / |z|⁴
-          nx = ( a*a - b*b) * inv + x0*s;
-          ny = ( 2*a*b      ) * inv + y0*s;
-          break;
+            const a = Math.abs(qx), b = Math.abs(qy);
+            const r2 = qx * qx + qy * qy + 1e-9;          // avoid /0
+            const inv = 1.0 / (r2 * r2);                // 1 / |z|⁴
+            nx = (a * a - b * b) * inv + ccx;
+            ny = (2 * a * b) * inv + ccy;
+            break;
         }
 
         /* ---------- 37 : Inverse Tricorn ---------------------------------- */
         case 37: {              //  1 / (conj(z)²)  + c
-          const r2   = qx*qx + qy*qy + 1e-9;
-          const inv  = 1.0 / (r2*r2);
-          nx = ( qx*qx - qy*qy) * inv + x0*s;
-          ny = (-2*qx*qy       ) * inv + y0*s;      // note minus => conjugate
-          break;
+            const r2 = qx * qx + qy * qy + 1e-9;
+            const inv = 1.0 / (r2 * r2);
+            nx = (qx * qx - qy * qy) * inv + ccx;
+            ny = (-2 * qx * qy) * inv + ccy;      // note minus => conjugate
+            break;
         }
 
         /* ---------- 38 : Inverse Celtic (uses abs on real part) ------------ */
         case 38: {
-          const r2  = qx*qx + qy*qy + 1e-9;
-          const inv = 1.0 / (r2*r2);
-          const rx  = Math.abs(qx*qx - qy*qy);
-          nx =  rx            * inv + x0*s;
-          ny = ( 2*qx*qy )    * inv + y0*s;
-          break;
+            const r2 = qx * qx + qy * qy + 1e-9;
+            const inv = 1.0 / (r2 * r2);
+            const rx = Math.abs(qx * qx - qy * qy);
+            nx = rx * inv + ccx;
+            ny = (2 * qx * qy) * inv + ccy;
+            break;
         }
 
         /* ---------- 39 : Inverse Phoenix (1/z² – 0.5·prev + c) ------------ */
         case 39: {
-          const r2  = qx*qx + qy*qy + 1e-9;      // avoid /0
-          const inv = 1.0 / (r2 * r2);           // 1 / |z|⁴
+            const r2 = qx * qx + qy * qy + 1e-9;      // avoid /0
+            const inv = 1.0 / (r2 * r2);           // 1 / |z|⁴
 
-          /* true 1 / z²   (Im part is POSITIVE) */
-          const zx2 = ( qx*qx - qy*qy) * inv;    // Re
-          const zy2 = ( 2.0*qx*qy    ) * inv;    // Im  ← fixed sign
+            /* true 1 / z²   (Im part is POSITIVE) */
+            const zx2 = (qx * qx - qy * qy) * inv;    // Re
+            const zy2 = (2.0 * qx * qy) * inv;    // Im  ← fixed sign
 
-          nx = zx2 + x0*s - 0.5*px;              // Phoenix blend  λ = –0.5
-          ny = zy2 + y0*s - 0.5*py;
+            nx = zx2 + ccx - 0.5 * px;              // Phoenix blend  λ = –0.5
+            ny = zy2 + ccy - 0.5 * py;
 
-          px = qx;                               // save previous-z
-          py = qy;
-          break;
+            px = qx;                               // save previous-z
+            py = qy;
+            break;
         }
         case 40: { //Tri-Nova
-          /* z² */
-          const zx2 = qx*qx - qy*qy,
-                zy2 = 2.0*qx*qy;
+            /* z² */
+            const zx2 = qx * qx - qy * qy,
+                zy2 = 2.0 * qx * qy;
 
-          /* z⁴ = (z²)² */
-          const zx4 = zx2*zx2 - zy2*zy2,
-                zy4 = 2.0*zx2*zy2;
+            /* z⁴ = (z²)² */
+            const zx4 = zx2 * zx2 - zy2 * zy2,
+                zy4 = 2.0 * zx2 * zy2;
 
-          /*  (4/3)·z  −  (1/3)·z⁴  + c  */
-          nx = (1.3333333333333333 * qx) - (0.3333333333333333 * zx4) + x0 * s;
-          ny = (1.3333333333333333 * qy) - (0.3333333333333333 * zy4) + y0 * s;
-          break;
+            /*  (4/3)·z  −  (1/3)·z⁴  + c  */
+            nx = (1.3333333333333333 * qx) - (0.3333333333333333 * zx4) + ccx;
+            ny = (1.3333333333333333 * qy) - (0.3333333333333333 * zy4) + ccy;
+            break;
         }
         case 41: {
             // Nova‐Mandelbrot: zₙ₊₁ = zₙ − (zₙ³ − 1)/(3 zₙ²) + c
 
             // z²
-            const zx2 = qx*qx - qy*qy,
-                  zy2 = 2.0*qx*qy;
+            const zx2 = qx * qx - qy * qy,
+                zy2 = 2.0 * qx * qy;
             // z³
-            const zx3 = zx2*qx - zy2*qy,
-                  zy3 = zx2*qy + zy2*qx;
+            const zx3 = zx2 * qx - zy2 * qy,
+                zy3 = zx2 * qy + zy2 * qx;
             // denominator = 3·z²
-            const denx = 3.0*zx2,
-                  deny = 3.0*zy2;
-            const den2 = denx*denx + deny*deny + 1e-9;  // avoid /0
+            const denx = 3.0 * zx2,
+                deny = 3.0 * zy2;
+            const den2 = denx * denx + deny * deny + 1e-9;  // avoid /0
 
             // numerator = z³ − 1
             const numx = zx3 - 1.0,
-                  numy = zy3;
+                numy = zy3;
 
             // division (z³−1)/(3 z²)
-            const divx = (numx*denx + numy*deny) / den2;
-            const divy = (numy*denx - numx*deny) / den2;
+            const divx = (numx * denx + numy * deny) / den2;
+            const divy = (numy * denx - numx * deny) / den2;
 
             // candidate for next z
-            const nx0 = qx - divx + x0*s,
-                  ny0 = qy - divy + y0*s;
-
-            // convergence check: |Δz|² < ε
-            const dx0 = nx0 - qx,
-                  dy0 = ny0 - qy;
-            if (dx0*dx0 + dy0*dy0 < 1e-6) {
-              qx = nx0;
-              qy = ny0;
-              iter++;            // count this final step
-              break outer;       // exit the while early
-            }
+            const nx0 = qx - divx + ccx,
+                ny0 = qy - divy + ccy;
 
             // otherwise accept the step
             nx = nx0;
@@ -1386,111 +1412,111 @@ self.onmessage = e => {
             break;
         }
         case 42: {  // Nova 2
-          // 1) compute 1/z
-          const r2_inv = 1.0 / (qx*qx + qy*qy + 1e-9);
-          const izRe =  qx * r2_inv;
-          const izIm = -qy * r2_inv;
+            // 1) compute 1/z
+            const r2_inv = 1.0 / (qx * qx + qy * qy + 1e-9);
+            const izRe = qx * r2_inv;
+            const izIm = -qy * r2_inv;
 
-          // 2) build (1/z)^2 and (1/z)^4
-          const zx2 = izRe*izRe - izIm*izIm;
-          const zy2 = 2.0*izRe*izIm;
-          const zx4 = zx2*zx2 - zy2*zy2;
-          const zy4 = 2.0*zx2*zy2;
+            // 2) build (1/z)^2 and (1/z)^4
+            const zx2 = izRe * izRe - izIm * izIm;
+            const zy2 = 2.0 * izRe * izIm;
+            const zx4 = zx2 * zx2 - zy2 * zy2;
+            const zy4 = 2.0 * zx2 * zy2;
 
-          // 3) apply forward Quad-Nova step on 1/z:
-          //    f = (4/3)*(1/z) - (1/3)*(1/z)^4 + c*s
-          const fRe = 1.3333333333333333 * izRe
-                    - 0.3333333333333333 * zx4
-                    + x0 * s;
-          const fIm = 1.3333333333333333 * izIm
-                    - 0.3333333333333333 * zy4
-                    + y0 * s;
+            // 3) apply forward Quad-Nova step on 1/z:
+            //    f = (4/3)*(1/z) - (1/3)*(1/z)^4 + c*s
+            const fRe = 1.3333333333333333 * izRe
+                - 0.3333333333333333 * zx4
+                + ccx;
+            const fIm = 1.3333333333333333 * izIm
+                - 0.3333333333333333 * zy4
+                + ccy;
 
-          // 4) invert back: z_{n+1} = 1 / f
-          const den  = 1.0 / (fRe*fRe + fIm*fIm + 1e-9);
-          nx =  fRe * den;
-          ny = -fIm * den;
-          break;
+            // 4) invert back: z_{n+1} = 1 / f
+            const den = 1.0 / (fRe * fRe + fIm * fIm + 1e-9);
+            nx = fRe * den;
+            ny = -fIm * den;
+            break;
         }
-        
+
         case 43: {  // Nova  2
-          // 1) build z² and z⁴ just like case 40
-          const zx2 = qx*qx - qy*qy;
-          const zy2 = 2.0*qx*qy;
-          const zx4 = zx2*zx2 - zy2*zy2;
-          const zy4 = 2.0*zx2*zy2;
+            // 1) build z² and z⁴ just like case 40
+            const zx2 = qx * qx - qy * qy;
+            const zy2 = 2.0 * qx * qy;
+            const zx4 = zx2 * zx2 - zy2 * zy2;
+            const zy4 = 2.0 * zx2 * zy2;
 
-          // 2) do the forward Quad-Nova step f(z) = (4/3)z – (1/3)z⁴ + c·s
-          const fRe = 1.3333333333333333*qx
-                    - 0.3333333333333333*zx4
-                    + x0 * s;
-          const fIm = 1.3333333333333333*qy
-                    - 0.3333333333333333*zy4
-                    + y0 * s;
+            // 2) do the forward Quad-Nova step f(z) = (4/3)z – (1/3)z⁴ + c·s
+            const fRe = 1.3333333333333333 * qx
+                - 0.3333333333333333 * zx4
+                + ccx;
+            const fIm = 1.3333333333333333 * qy
+                - 0.3333333333333333 * zy4
+                + ccy;
 
-          // 3) invert that result: z_{n+1} = 1 / f
-          const invR2 = 1.0 / (fRe*fRe + fIm*fIm + 1e-9);
-          nx =  fRe * invR2;
-          ny = -fIm * invR2;
-          break;
+            // 3) invert that result: z_{n+1} = 1 / f
+            const invR2 = 1.0 / (fRe * fRe + fIm * fIm + 1e-9);
+            nx = fRe * invR2;
+            ny = -fIm * invR2;
+            break;
         }
-        
+
         case 44: { // Quartic-Nova: Newton iteration for z⁴ – 1 (plus c)
-          // First build z² and z³
-          const zx2 = qx*qx - qy*qy;
-          const zy2 = 2*qx*qy;
-          const zx3 = zx2*qx - zy2*qy;
-          const zy3 = zx2*qy + zy2*qx;
+            // First build z² and z³
+            const zx2 = qx * qx - qy * qy;
+            const zy2 = 2 * qx * qy;
+            const zx3 = zx2 * qx - zy2 * qy;
+            const zy3 = zx2 * qy + zy2 * qx;
 
-          // Now z⁴ = z³ * z
-          const zx4 = zx3*qx - zy3*qy;
-          const zy4 = zx3*qy + zy3*qx;
+            // Now z⁴ = z³ * z
+            const zx4 = zx3 * qx - zy3 * qy;
+            const zy4 = zx3 * qy + zy3 * qx;
 
-          // Newton step: (z⁴ – 1) / (4 z³)
-          const numx = zx4 - 1.0, numy = zy4;
-          const denx = 4.0*(zx2*qx - zy2*qy);
-          const deny = 4.0*(zx2*qy + zy2*qx);
-          const den2 = denx*denx + deny*deny + 1e-9; // avoid /0
+            // Newton step: (z⁴ – 1) / (4 z³)
+            const numx = zx4 - 1.0, numy = zy4;
+            const denx = 4.0 * (zx2 * qx - zy2 * qy);
+            const deny = 4.0 * (zx2 * qy + zy2 * qx);
+            const den2 = denx * denx + deny * deny + 1e-9; // avoid /0
 
-          const divx = (numx*denx + numy*deny) / den2;
-          const divy = (numy*denx - numx*deny) / den2;
+            const divx = (numx * denx + numy * deny) / den2;
+            const divy = (numy * denx - numx * deny) / den2;
 
-          // new z = z – (z⁴–1)/(4 z³) + c
-          nx = qx - divx + x0*s;
-          ny = qy - divy + y0*s;
-          break;
+            // new z = z – (z⁴–1)/(4 z³) + c
+            nx = qx - divx + ccx;
+            ny = qy - divy + ccy;
+            break;
         }
         case 45: { // Flower Nova
-        // seed z₀ = c
+            // seed z₀ = c
             if (iter === 0) {
-              qx = x0;
-              qy = y0;
+                qx = cx;
+                qy = cy;
             }
 
             // 1) build z²
-            const zx2 = qx*qx - qy*qy;
-            const zy2 = 2.0*qx*qy;
+            const zx2 = qx * qx - qy * qy;
+            const zy2 = 2.0 * qx * qy;
 
             // 2) build z³ & z⁴
-            const zx3 = zx2*qx - zy2*qy;
-            const zy3 = zx2*qy + zy2*qx;
-            const zx4 = zx3*qx - zy3*qy;
-            const zy4 = zx3*qy + zy3*qx;
+            const zx3 = zx2 * qx - zy2 * qy;
+            const zy3 = zx2 * qy + zy2 * qx;
+            const zx4 = zx3 * qx - zy3 * qy;
+            const zy4 = zx3 * qy + zy3 * qx;
 
             // 3) Newton-style divisor = 4 z³
-            const denx = 4.0*zx3, deny = 4.0*zy3;
-            const den2 = denx*denx + deny*deny + 1e-9;
+            const denx = 4.0 * zx3, deny = 4.0 * zy3;
+            const den2 = denx * denx + deny * deny + 1e-9;
 
             // 4) numerator = z⁴ – 1
             const numx = zx4 - 1.0, numy = zy4;
 
             // 5) (z⁴–1)/(4z³)
-            const divx = (numx*denx + numy*deny) / den2;
-            const divy = (numy*denx - numx*deny) / den2;
+            const divx = (numx * denx + numy * deny) / den2;
+            const divy = (numy * denx - numx * deny) / den2;
 
             // 6) forward candidate: zₙ – (z⁴–1)/(4z³) + c·s
-            const fx = qx - divx + x0*s;
-            const fy = qy - divy + y0*s;
+            const fx = qx - divx + ccx;
+            const fy = qy - divy + ccy;
 
             // 7) NEGATE the result
             nx = -fx;
@@ -1498,73 +1524,51 @@ self.onmessage = e => {
             break;
         }
         case 46: {  // Scatter-Nova 
-             // seed z₀ = c exactly once
-          if (iter === 0) {
-            qx = x0;
-            qy = y0;
-          }
+            // seed z₀ = c exactly once
+            if (iter === 0) {
+                qx = cx;
+                qy = cy;
+            }
 
-          // build z²
-          const zx2 = qx*qx - qy*qy;
-          const zy2 = 2.0*qx*qy;
+            // build z²
+            const zx2 = qx * qx - qy * qy;
+            const zy2 = 2.0 * qx * qy;
 
-          // build z³ and z⁴
-          const zx3 = zx2*qx - zy2*qy;
-          const zy3 = zx2*qy + zy2*qx;
-          const zx4 = zx3*qx - zy3*qy;
-          const zy4 = zx3*qy + zy3*qx;
+            // build z³ and z⁴
+            const zx3 = zx2 * qx - zy2 * qy;
+            const zy3 = zx2 * qy + zy2 * qx;
+            const zx4 = zx3 * qx - zy3 * qy;
+            const zy4 = zx3 * qy + zy3 * qx;
 
-          // denominator = 4·z³
-          const denx = 4.0*zx3, deny = 4.0*zy3;
-          const den2 = denx*denx + deny*deny + 1e-9; // avoid /0
+            // denominator = 4·z³
+            const denx = 4.0 * zx3, deny = 4.0 * zy3;
+            const den2 = denx * denx + deny * deny + 1e-9; // avoid /0
 
-          // numerator = z⁴ – 1
-          const numx = zx4 - 1.0, numy = zy4;
+            // numerator = z⁴ – 1
+            const numx = zx4 - 1.0, numy = zy4;
 
-          // (z⁴–1)/(4 z³)
-          const divx = (numx*denx + numy*deny)/den2;
-          const divy = (numy*denx - numx*deny)/den2;
+            // (z⁴–1)/(4 z³)
+            const divx = (numx * denx + numy * deny) / den2;
+            const divy = (numy * denx - numx * deny) / den2;
 
-          // forward Newton candidate: z – (z⁴–1)/(4 z³) + c·s
-          const fx = qx - divx + x0*s;
-          const fy = qy - divy + y0*s;
+            // forward Newton candidate: z – (z⁴–1)/(4 z³) + c·s
+            const fx = qx - divx + ccx;
+            const fy = qy - divy + ccy;
 
-          // **invert** it: zₙ₊₁ = 1 / f
-          const invR2 = 1.0/(fx*fx + fy*fy + 1e-9);
-          nx =  fx * invR2;
-          ny = -fy * invR2;
-          break;
+            // **invert** it: zₙ₊₁ = 1 / f
+            const invR2 = 1.0 / (fx * fx + fy * fy + 1e-9);
+            nx = fx * invR2;
+            ny = -fy * invR2;
+            break;
         }
-     
+
         default: // Mandelbrot
-            nx = qx*qx - qy*qy + x0*s;
-            ny = 2*qx*qy       + y0*s;
-        }
-
-        // ─── GENERAL CONVERGENCE TEST ─────────────────────────
-        const dx_ = nx - qx, dy_ = ny - qy;
-        if (dx_*dx_ + dy_*dy_ < epsilon) {
-          qx = nx;  qy = ny;
-          iter++;             // count this final step
-          break outer;        // exit the while on convergence
-        }
-
-        qx = nx;  qy = ny;
-        iter++;
-      }
-
-      const base = 3*idx;
-      pos[base    ] = x0;
-      pos[base + 1] = y0;
-      pos[base + 2] = gamma;
-      rat[idx]      = iter / maxIter;
-      idx++;
+            nx = qx * qx - qy * qy + ccx;
+            ny = 2 * qx * qy + ccy;
     }
-  }
 
-  self.postMessage({ k, pos: pos.buffer, rat: rat.buffer },
-                   [pos.buffer, rat.buffer]);
-};
+    return { nx, ny, npx, npy };
+}
 `;
     const workerURL = URL.createObjectURL(new Blob([workerSrc], { type: 'application/javascript' }));
 
@@ -1643,7 +1647,7 @@ self.onmessage = e => {
 
       w.postMessage({
         gridSize, k, zMin, dz, zoom, escapeR, maxIter, dx, dy,
-        fractalType: curFrac,
+        fractalType: curFrac, scaleMode: scaleM
         // juliaMode: +pJuliaMode.checked,
         // juliaRe: +pJuliaRe.value,
         // juliaIm: +pJuliaIm.value,
