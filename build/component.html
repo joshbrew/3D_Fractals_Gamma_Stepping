@@ -86,74 +86,79 @@
     <fieldset style="border:1px solid #555;padding:6px">
       <legend>Render Parameters</legend>
       <!-- Fractal selector -->
-      <label>Fractal 📐:
-        <select id="fractalType">
-          <option value="0" selected>Mandelbrot</option>
-          <option value="20">Inverse Mandelbrot (1/z²+c)</option>
-          <option value="37">Inverse Tricorn (1/conj(z)² + c)</option>
-          <option value="3">Perpendicular Mandel</option>
-          <option value="2">Burning Ship</option>
-          <option value="21">Burning Ship – Tip Zoom</option>
-          <option value="4">Celtic</option>
-          <option value="5">Buffalo</option>
-          <option value="6">Phoenix (λ ≈ -0.5)</option>
-          <option value="41">Nova Mandelbrot (z³ − 1, z₀ = 0)</option>
-          <option value="43">Nova 2</option>
-          <option value="26">Tri-Nova</option>
-          <option value="44">Quad-Nova</option>
-          <option value="40">Inverse Tri-Nova</option>
-          <option value="42">Inverse Tri-Nova 2</option>
-          <option value="27">Man-o-War</option>
-          <option value="11">Heart</option>
-          <option value="9">Cosine</option>
-          <option value="10">Sine</option>
-          <option value="12">Perpendicular Buffalo</option>
-          <option value="16">Tangent (tan z + c)</option>
-          <option value="17">Exponential (exp z + c)</option>
-          <option value="1">Tricorn Mandelbrot</option>
-          <option value="13">Spiral Mandelbrot</option>
-          <option value="7">Cubic Multibrot</option>
-          <option value="8">Quartic Multibrot</option>
-          <option value="14">Quintic Multibrot (z⁵ + c)</option>
-          <option value="15">Sextic Multibrot (z⁶ + c)</option>
-          <option value="18">Septic Multibrot (z⁷+c)</option>
-          <option value="19">Octic Multibrot (z⁸+c)</option>
-          <option value="22">Cubic Ship (|z|³ + c)</option>
-          <option value="23">Quartic Ship (|z|⁴ + c)</option>
-          <option value="24">Quintic Ship (|z|⁵ + c)</option>
-          <option value="25">Hexic Ship (|z|⁶ + c)</option>
-          <option value="30">Inverse Cubic (1 / z³ + c)</option>
-          <option value="31">Inverse Quartic (1 / z⁴ + c)</option>
-          <option value="32">Inverse Quintic (1 / z⁵ + c)</option>
-          <option value="33">Inverse Sextic (1 / z⁶ + c)</option>
-          <option value="34">Inverse Septic (1 / z⁷ + c)</option>
-          <option value="35">Inverse Octic (1 / z⁸ + c)</option>
-          <option value="36">Inverse Burning Ship (1/|z|² + c)</option>
-          <option value="38">Inverse Celtic (|1/z|² + c)</option>
-          <option value="39">Inverse Phoenix (1/z² – 0.5·z<sub>n–1</sub> + c)</option>
-          <option value="45">Quartic Flower-Nova</option>
-          <option value="46">Scatter-Nova</option>
-        </select>
-      </label>
 
-      <label>Grid (px):<input id="pGrid" type="number" min="100" max="1200" step="50" value="800"></label>
-      <label>zMin:<input id="pZmin" type="number" step="0.01" value="0"></label>
-      <label>zMax:<input id="pZmax" type="number" step="0.01" value="2"></label>
-      <label>dz (step):<input id="pDz" type="number" step="0.001" value="0.02"></label>
-      <label>zoom:<input id="pZoom" type="number" step="0.1" value="4"></label>
-      <label>escapeR:<input id="pEsc" type="number" step="0.5" value="4"></label>
-      <label>maxIter:<input id="pIter" type="number" min="10" max="1000" step="10" value="100"></label>
-      <label>dx (real):<input id="pDx" type="number" step="0.001" value="0"></label>
-      <label>dy (imag):<input id="pDy" type="number" step="0.001" value="0"></label>
-      <label>Scale Mode:
-        <select id="scaleMode">
-          <option value="0">None</option>
-          <option value="1" selected>Multiply</option>
-          <option value="2">Divide</option>
-        </select>
-      </label>
-      <label>Force C-test:<input id="convergenceTest" type="checkbox"></label>
-      <!--         <label>Julia Mode:
+      <fieldset style="border:1px solid #555;padding:6px">
+        <legend>Render Parameters</legend>
+        <!-- Fractal selector -->
+        <label>Fractal 📐:
+          <select id="fractalType">
+            <option value="0" selected>Mandelbrot</option>
+            <option value="37">Inverse Tricorn (1/conj(z)² + c)</option>
+            <option value="2">Burning Ship</option>
+            <option value="21">Burning Ship – Tip Zoom</option>
+            <option value="47">Burning Ship – Tip Zoom 2</option>
+            <option value="3">Perpendicular Mandel</option>
+            <option value="4">Celtic</option>
+            <option value="5">Buffalo</option>
+            <option value="6">Phoenix (λ ≈ -0.5)</option>
+            <option value="41">Nova Mandelbrot (z³ − 1, z₀ = 0)</option>
+            <option value="43">Nova 2</option>
+            <option value="26">Tri-Nova</option>
+            <option value="44">Quad-Nova</option>
+            <option value="40">Inverse Tri-Nova</option>
+            <option value="42">Inverse Tri-Nova 2</option>
+            <option value="27">Man-o-War</option>
+            <option value="11">Heart</option>
+            <option value="9">Cosine</option>
+            <option value="10">Sine</option>
+            <option value="12">Perpendicular Buffalo</option>
+            <option value="16">Tangent (tan z + c)</option>
+            <option value="17">Exponential (exp z + c)</option>
+            <option value="1">Tricorn Mandelbrot</option>
+            <option value="13">Spiral Mandelbrot</option>
+            <option value="7">Cubic Multibrot</option>
+            <option value="8">Quartic Multibrot</option>
+            <option value="14">Quintic Multibrot (z⁵ + c)</option>
+            <option value="15">Sextic Multibrot (z⁶ + c)</option>
+            <option value="18">Septic Multibrot (z⁷+c)</option>
+            <option value="19">Octic Multibrot (z⁸+c)</option>
+            <option value="22">Cubic Ship (|z|³ + c)</option>
+            <option value="23">Quartic Ship (|z|⁴ + c)</option>
+            <option value="24">Quintic Ship (|z|⁵ + c)</option>
+            <option value="25">Hexic Ship (|z|⁶ + c)</option>
+            <option value="20">Inverse Mandelbrot (1/z²+c)</option>
+            <option value="30">Inverse Cubic (1 / z³ + c)</option>
+            <option value="31">Inverse Quartic (1 / z⁴ + c)</option>
+            <option value="32">Inverse Quintic (1 / z⁵ + c)</option>
+            <option value="33">Inverse Sextic (1 / z⁶ + c)</option>
+            <option value="34">Inverse Septic (1 / z⁷ + c)</option>
+            <option value="35">Inverse Octic (1 / z⁸ + c)</option>
+            <option value="36">Inverse Burning Ship (1/|z|² + c)</option>
+            <option value="38">Inverse Celtic (|1/z|² + c)</option>
+            <option value="39">Inverse Phoenix (1/z² – 0.5·z<sub>n–1</sub> + c)</option>
+            <option value="45">Quartic Flower-Nova</option>
+            <option value="46">Scatter-Nova</option>
+          </select>
+        </label>
+
+        <label>Grid (px):<input id="pGrid" type="number" min="100" max="1200" step="50" value="800"></label>
+        <label>zMin:<input id="pZmin" type="number" step="0.01" value="0"></label>
+        <label>zMax:<input id="pZmax" type="number" step="0.01" value="2"></label>
+        <label>dz (step):<input id="pDz" type="number" step="0.001" value="0.02"></label>
+        <label>zoom:<input id="pZoom" type="number" step="0.1" value="4"></label>
+        <label>escapeR:<input id="pEsc" type="number" step="0.5" value="4"></label>
+        <label>maxIter:<input id="pIter" type="number" min="10" max="1000" step="10" value="100"></label>
+        <label>dx (real):<input id="pDx" type="number" step="0.001" value="0"></label>
+        <label>dy (imag):<input id="pDy" type="number" step="0.001" value="0"></label>
+        <label>Scale Mode:
+          <select id="scaleMode">
+            <option value="0">None</option>
+            <option value="1" selected>Multiply</option>
+            <option value="2">Divide</option>
+          </select>
+        </label>
+        <label>Force C-test:<input id="convergenceTest" type="checkbox"></label>
+        <!--         <label>Julia Mode:
           <input id="pJuliaMode" type="checkbox">
         </label>
         <label>Julia Re:
@@ -162,11 +167,11 @@
         <label>Julia Im:
           <input id="pJuliaIm" type="number" step="0.01" value="0.00">
         </label> -->
-      <button id="applyParams" style="width:100%;margin-top:6px">Apply</button>
-      <button id="resetAll" style="width:100%;margin-top:4px;background:#550;border-color:#777">
-        Reset defaults
-      </button>
-    </fieldset>
+        <button id="applyParams" style="width:100%;margin-top:6px">Apply</button>
+        <button id="resetAll" style="width:100%;margin-top:4px;background:#550;border-color:#777">
+          Reset defaults
+        </button>
+      </fieldset>
 
   </details>
   <details>
@@ -248,8 +253,8 @@
         </dd>
 
         <dt><b>Force C-Test</b></dt>
-          <dd style="margin:0 0 .3rem 1.2rem;">
-            Force convergence testing, punches holes in standard fractals. It runs on Nova fractals for performance.
+        <dd style="margin:0 0 .3rem 1.2rem;">
+          Force convergence testing, punches holes in standard fractals. It runs on Nova fractals for performance.
         </dd>
       </dl>
     </dl>

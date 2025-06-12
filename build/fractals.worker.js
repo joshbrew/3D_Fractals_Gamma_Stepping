@@ -5,7 +5,7 @@ self.onmessage = e => {
         maxIter, fractalType, dx = 0, dy = 0,
         juliaMode, juliaRe = 0.75, juliaIm = 0,
         epsilon: epsIn = 1e-6, scaleMode = 1, convergenceTest,
-        escapeMode  = 'converge'
+        escapeMode = 'converge'
     } = e.data;
 
     const N = gridSize * gridSize;
@@ -17,13 +17,13 @@ self.onmessage = e => {
     const escapeR2 = escapeR * escapeR;
 
     const isNewton =
-        fractalType === 26  || // Nova
-        fractalType === 40  || // Tri-Nova
-        fractalType === 41  || // Nova-Mandelbrot
-        fractalType === 42  || // Nova-2
-        fractalType === 43  || // Nova-2 (alt)
-        fractalType === 44  || // Quartic-Nova
-        fractalType === 45  || // Flower-Nova
+        fractalType === 26 || // Nova
+        fractalType === 40 || // Tri-Nova
+        fractalType === 41 || // Nova-Mandelbrot
+        fractalType === 42 || // Nova-2
+        fractalType === 43 || // Nova-2 (alt)
+        fractalType === 44 || // Quartic-Nova
+        fractalType === 45 || // Flower-Nova
         fractalType === 46;    // Scatter-Nova
 
     let idx = 0;
@@ -46,21 +46,21 @@ self.onmessage = e => {
                     computeFractal(fractalType, qx, qy, px, py, x0, y0, gamma, iter, scaleMode);
 
                 // convergence test
-                if((isNewton || convergenceTest)) {
-                  if (escapeMode === 'diverge') {
-                      // bail as soon as we overflow the escape radius
-                      if (nx*nx + ny*ny > escapeR2) {
-                          iter++;
-                          break outer;
-                      }
-                  } else {
-                      // convergence-mode: only stop when the iterate actually settles
-                       const dx_ = nx - qx, dy_ = ny - qy;
-                      if (dx_*dx_ + dy_*dy_ < epsilon) {
-                        iter++;
-                        break outer;
-                      }
-                  }
+                if ((isNewton || convergenceTest)) {
+                    if (escapeMode === 'diverge') {
+                        // bail as soon as we overflow the escape radius
+                        if (nx * nx + ny * ny > escapeR2) {
+                            iter++;
+                            break outer;
+                        }
+                    } else {
+                        // convergence-mode: only stop when the iterate actually settles
+                        const dx_ = nx - qx, dy_ = ny - qy;
+                        if (dx_ * dx_ + dy_ * dy_ < epsilon) {
+                            iter++;
+                            break outer;
+                        }
+                    }
                 }
                 qx = nx; qy = ny;
                 px = npx; py = npy;
@@ -103,32 +103,32 @@ function invPower(qx, qy, p) {
 
 function getInitialZ(type, x0, y0) {
     if (
-      type === 26 || // Nova
-      type === 40 || // Tri-Nova
-      type === 41 || // Nova-Mandelbrot
-      type === 42 || // Nova-2
-      type === 43 || // Nova-2 (alt)
-      type === 44 || // Quartic-Nova
-      type === 45 || // Flower-Nova
-      type === 46    // Scatter-Nova
+        type === 26 || // Nova
+        type === 40 || // Tri-Nova
+        type === 41 || // Nova-Mandelbrot
+        type === 42 || // Nova-2
+        type === 43 || // Nova-2 (alt)
+        type === 44 || // Quartic-Nova
+        type === 45 || // Flower-Nova
+        type === 46    // Scatter-Nova
     ) {
-      return [1, 0, 0, 0];
+        return [1, 0, 0, 0];
     }
     if (type >= 30 && type <= 39) return [x0, y0, 0, 0]; // inverse families at c
     return [0, 0, 0, 0];                            // all others at 0
 }
 
-function computeFractal(fractalType, qx, qy, px, py, cx, cy, gamma, iter, scaleMode=1) {
+function computeFractal(fractalType, qx, qy, px, py, cx, cy, gamma, iter, scaleMode = 1) {
     const s = 1 + iter * (gamma - 1);
     let ccx = cx, ccy = cy;
-    if(scaleMode === 1){
-        ccx*=s; ccy*=s;
+    if (scaleMode === 1) {
+        ccx *= s; ccy *= s;
     } else if (scaleMode === 2) {
-        ccx/=s; ccy/=s;
+        ccx /= s; ccy /= s;
     }
     const a = Math.abs(qx), b = Math.abs(qy);
     let nx, ny, npx = px, npy = py;
-    
+
 
     switch (fractalType) {
         case 1:  // Tricorn
@@ -157,10 +157,10 @@ function computeFractal(fractalType, qx, qy, px, py, cx, cy, gamma, iter, scaleM
             break;
 
         case 6:  // Phoenix (λ = –0.5)
-            nx   = qx*qx - qy*qy + ccx - 0.5*px;
-            ny   = 2*qx*qy    + ccy - 0.5*py;
-            npx  = qx;      // ← store *this* iteration's z for the next round
-            npy  = qy;
+            nx = qx * qx - qy * qy + ccx - 0.5 * px;
+            ny = 2 * qx * qy + ccy - 0.5 * py;
+            npx = qx;      // ← store *this* iteration's z for the next round
+            npy = qy;
             break;
 
         case 7: { // Cubic Multibrot (z³ + c)
@@ -301,8 +301,8 @@ function computeFractal(fractalType, qx, qy, px, py, cx, cy, gamma, iter, scaleM
             const dx = ccx * sub + cx;
             const dy = ccy * sub + cy;
 
-            nx = a*a - b*b + dx * s;               // same Burning-Ship update
-            ny = 2.0*a*b   + dy * s;
+            nx = a * a - b * b + dx * s;               // same Burning-Ship update
+            ny = 2.0 * a * b + dy * s;
             break;
         }
 
@@ -364,11 +364,11 @@ function computeFractal(fractalType, qx, qy, px, py, cx, cy, gamma, iter, scaleM
 
         /* -------- Man-o-War (needs previous-z, reuse Phoenix vars) ------------------ */
         case 27: { // z² + c + z_{n-1}
-          nx  = qx*qx - qy*qy + ccx + px;
-          ny  = 2.0*qx*qy     + ccy + py;
-          npx = qx;            // ← store current z for the next iteration
-          npy = qy;
-          break;
+            nx = qx * qx - qy * qy + ccx + px;
+            ny = 2.0 * qx * qy + ccy + py;
+            npx = qx;            // ← store current z for the next iteration
+            npy = qy;
+            break;
         }
         /*   30 – inv cubic   | 31 – inv quartic | … | 35 – inv octic   */
         case 30:
@@ -627,7 +627,24 @@ function computeFractal(fractalType, qx, qy, px, py, cx, cy, gamma, iter, scaleM
             ny = -fy * invR2;
             break;
         }
-
+        case 47: {
+            // the “needle” centre in the c-plane:
+            const tipRe = -1.8043359375;
+            const tipIm = -0.017451171875;
+            // how deep (fraction of current zoom window) you want to go:
+            const sub = 0.04;
+  
+            // 'cx' and 'cy' here are your usual sample-point
+            // (i.e. ((i*invGrid - .5)*zoom + dx), etc.)
+            // we now pull them fractionally toward the tip
+            const zoomedRe = tipRe + (ccx - tipRe) * sub;
+            const zoomedIm = tipIm + (ccy - tipIm) * sub;
+  
+            // burn-ship uses absolute values of the *previous* z:
+            nx = a * a - b * b + zoomedRe;
+            ny = 2 * a * b + zoomedIm;
+            break;
+          }
         default: // Mandelbrot
             nx = qx * qx - qy * qy + ccx;
             ny = 2 * qx * qy + ccy;

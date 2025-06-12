@@ -722,7 +722,7 @@ function launch() {
 
   w.postMessage({
     gridSize, k, zMin, dz, zoom, escapeR, maxIter, dx, dy,
-    fractalType: curFrac, scaleMode: scaleM, convergenceTest:convergenceTest.checked
+    fractalType: curFrac, scaleMode: scaleM, convergenceTest: convergenceTest.checked
   });
 
   w.onmessage = ({ data: { k, pos, rat } }) => {

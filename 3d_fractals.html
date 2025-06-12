@@ -313,11 +313,11 @@
         <label>Fractal 📐:
           <select id="fractalType">
             <option value="0" selected>Mandelbrot</option>
-            <option value="20">Inverse Mandelbrot (1/z²+c)</option>
             <option value="37">Inverse Tricorn (1/conj(z)² + c)</option>
-            <option value="3">Perpendicular Mandel</option>
             <option value="2">Burning Ship</option>
             <option value="21">Burning Ship – Tip Zoom</option>
+            <option value="47">Burning Ship – Tip Zoom 2</option>
+            <option value="3">Perpendicular Mandel</option>
             <option value="4">Celtic</option>
             <option value="5">Buffalo</option>
             <option value="6">Phoenix (λ ≈ -0.5)</option>
@@ -346,6 +346,7 @@
             <option value="23">Quartic Ship (|z|⁴ + c)</option>
             <option value="24">Quintic Ship (|z|⁵ + c)</option>
             <option value="25">Hexic Ship (|z|⁶ + c)</option>
+            <option value="20">Inverse Mandelbrot (1/z²+c)</option>
             <option value="30">Inverse Cubic (1 / z³ + c)</option>
             <option value="31">Inverse Quartic (1 / z⁴ + c)</option>
             <option value="32">Inverse Quintic (1 / z⁵ + c)</option>
@@ -1136,7 +1137,24 @@ function computeFractal(fractalType, qx, qy, px, py, cx, cy, gamma, iter, scaleM
             ny = -fy * invR2;
             break;
         }
+        case 47: {
+          // the “needle” centre in the c-plane:
+          const tipRe = -1.7443359375;
+          const tipIm = -0.017451171875;
+          // how deep (fraction of current zoom window) you want to go:
+          const sub = 0.04;
 
+          // 'cx' and 'cy' here are your usual sample-point
+          // (i.e. ((i*invGrid - .5)*zoom + dx), etc.)
+          // we now pull them fractionally toward the tip
+          const zoomedRe = tipRe + (ccx - tipRe) * sub;
+          const zoomedIm = tipIm + (ccy - tipIm) * sub;
+
+          // burn-ship uses absolute values of the *previous* z:
+          nx = a * a - b * b + zoomedRe;
+          ny = 2 * a * b + zoomedIm;
+          break;
+        }
         default: // Mandelbrot
             nx = qx * qx - qy * qy + ccx;
             ny = 2 * qx * qy + ccy;
