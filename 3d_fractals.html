@@ -839,11 +839,12 @@ function computeFractal(fractalType, qx, qy, px, py, cx, cy, gamma, iter, scaleM
         }
 
         /* -------- Man-o-War (needs previous-z, reuse Phoenix vars) ------------------ */
-        case 27: {                                // z² + c + z_{n-1}
-            nx = qx * qx - qy * qy + ccx + px;
-            ny = 2.0 * qx * qy + ccy + py;
-            px = qx; py = qy;                       // store prev-z
-            break;
+        case 27: { // z² + c + z_{n-1}
+          nx  = qx*qx - qy*qy + ccx + px;
+          ny  = 2.0*qx*qy     + ccy + py;
+          npx = qx;            // ← store current z for the next iteration
+          npy = qy;
+          break;
         }
         /*   30 – inv cubic   | 31 – inv quartic | … | 35 – inv octic   */
         case 30:
@@ -903,8 +904,8 @@ function computeFractal(fractalType, qx, qy, px, py, cx, cy, gamma, iter, scaleM
             nx = zx2 + ccx - 0.5 * px;              // Phoenix blend  λ = –0.5
             ny = zy2 + ccy - 0.5 * py;
 
-            px = qx;                               // save previous-z
-            py = qy;
+            npx = qx;                             // save previous-z
+            npy = qy;
             break;
         }
         case 40: { //Tri-Nova
