@@ -375,7 +375,7 @@
             <option value="2">Divide</option>
           </select>
         </label>
-        <label>Force C-test:<input id="convergence" type="checkbox"></label>
+        <label>Force C-test:<input id="convergenceTest" type="checkbox"></label>
         <!--         <label>Julia Mode:
           <input id="pJuliaMode" type="checkbox">
         </label>
@@ -1164,7 +1164,7 @@ function computeFractal(fractalType, qx, qy, px, py, cx, cy, gamma, iter, scaleM
     const hueOffsetVal = $('hueOffsetVal');
     const layerOffset = $('layerOffset');
     const layerOffsetVal = $('layerOffsetVal');
-    const convergenceTest = $('convergence');
+    const convergenceTest = $('convergenceTest');
 
     let _hueAutoMode = 2;
 
@@ -1203,8 +1203,6 @@ function computeFractal(fractalType, qx, qy, px, py, cx, cy, gamma, iter, scaleM
       zMin: +pZmin.value, zMax: +pZmax.value, dz: +pDz.value,
       zoom: +pZoom.value, escR: +pEsc.value, iter: +pIter.value,
       dx: +pDx.value, dy: +pDy.value, scaleMode: +scaleMode.value,
-      hueOffset: hueOffset.value,
-      layers: +layerVis.value,
       layerOff: +layerOffset.value,
       convergenceTest: convergenceTest.checked
       // juliaMode: pJuliaMode.checked,
@@ -1818,7 +1816,7 @@ void main () {
 
       w.postMessage({
         gridSize, k, zMin, dz, zoom, escapeR, maxIter, dx, dy,
-        fractalType: curFrac, scaleMode: scaleM, convergenceTest:convergenceTest.checked
+        fractalType: curFrac, scaleMode: scaleM, convergenceTest: ui.convergenceTest.checked
         // juliaMode: +pJuliaMode.checked,
         // juliaRe: +pJuliaRe.value,
         // juliaIm: +pJuliaIm.value,
