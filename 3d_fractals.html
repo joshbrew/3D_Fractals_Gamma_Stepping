@@ -375,6 +375,12 @@
             <option value="2">Divide</option>
           </select>
         </label>
+        <label>Escape Mode:
+          <select id="escapeMode">
+            <option value="diverge">Divergence</option>
+            <option value="converge" selected>Convergence</option>
+          </select>
+        </label>
         <label>Force C-test:<input id="convergenceTest" type="checkbox"></label>
         <!--         <label>Julia Mode:
           <input id="pJuliaMode" type="checkbox">
@@ -472,6 +478,11 @@
             Real and imaginary offset of the fractal window (pans the view).
           </dd>
 
+          <dt><b>Escape Mode</b></dt>
+          <dd style="margin:0 0 .3rem 1.2rem;">
+            This will make different holes in the fractals.
+          </dd>
+
           <dt><b>Force C-Test</b></dt>
           <dd style="margin:0 0 .3rem 1.2rem;">
             Force convergence testing, punches holes in standard fractals. It runs on Nova fractals for performance.
@@ -502,7 +513,8 @@ self.onmessage = e => {
         gridSize, k, zMin, dz, zoom, escapeR,
         maxIter, fractalType, dx = 0, dy = 0,
         juliaMode, juliaRe = 0.75, juliaIm = 0,
-        epsilon: epsIn = 1e-6, scaleMode = 1, convergenceTest
+        epsilon: epsIn = 1e-6, scaleMode = 1, convergenceTest,
+        escapeMode  = 'converge'
     } = e.data;
 
     const N = gridSize * gridSize;
@@ -543,11 +555,21 @@ self.onmessage = e => {
                     computeFractal(fractalType, qx, qy, px, py, x0, y0, gamma, iter, scaleMode);
 
                 // convergence test
-                const dx_ = nx - qx, dy_ = ny - qy;
-                if ((isNewton || convergenceTest) && dx_ * dx_ + dy_ * dy_ < epsilon) {
-                    qx = nx; qy = ny;
-                    iter++;
-                    break outer;
+                if((isNewton || convergenceTest)) {
+                  if (escapeMode === 'diverge') {
+                      // bail as soon as we overflow the escape radius
+                      if (nx*nx + ny*ny > escapeR2) {
+                          iter++;
+                          break outer;
+                      }
+                  } else {
+                      // convergence-mode: only stop when the iterate actually settles
+                       const dx_ = nx - qx, dy_ = ny - qy;
+                      if (dx_*dx_ + dy_*dy_ < epsilon) {
+                        iter++;
+                        break outer;
+                      }
+                  }
                 }
                 qx = nx; qy = ny;
                 px = npx; py = npy;
@@ -589,7 +611,18 @@ function invPower(qx, qy, p) {
 }
 
 function getInitialZ(type, x0, y0) {
-    if (type === 41) return [1, 0, 0, 0];   // Nova starts at 1+0i, px=py=0
+    if (
+      type === 26 || // Nova
+      type === 40 || // Tri-Nova
+      type === 41 || // Nova-Mandelbrot
+      type === 42 || // Nova-2
+      type === 43 || // Nova-2 (alt)
+      type === 44 || // Quartic-Nova
+      type === 45 || // Flower-Nova
+      type === 46    // Scatter-Nova
+    ) {
+      return [1, 0, 0, 0];
+    }
     if (type >= 30 && type <= 39) return [x0, y0, 0, 0]; // inverse families at c
     return [0, 0, 0, 0];                            // all others at 0
 }
@@ -774,11 +807,11 @@ function computeFractal(fractalType, qx, qy, px, py, cx, cy, gamma, iter, scaleM
             const sub = 0.04;                      // ← tweak to zoom further
 
             /* translate AND shrink the c-plane sample */
-            const dx = cx*sub + cx;
-            const dy = cy*sub + cy;
+            const dx = ccx * sub + cx;
+            const dy = ccy * sub + cy;
 
-            nx = a * a - b * b + dx * s;               // same Burning-Ship update
-            ny = 2.0 * a * b + dy * s;
+            nx = a*a - b*b + dx * s;               // same Burning-Ship update
+            ny = 2.0*a*b   + dy * s;
             break;
         }
 
@@ -1165,6 +1198,7 @@ function computeFractal(fractalType, qx, qy, px, py, cx, cy, gamma, iter, scaleM
     const hueOffsetVal = $('hueOffsetVal');
     const layerOffset = $('layerOffset');
     const layerOffsetVal = $('layerOffsetVal');
+    const escapeMode = $('escapeMode');
     const convergenceTest = $('convergenceTest');
 
     let _hueAutoMode = 2;
@@ -1205,7 +1239,8 @@ function computeFractal(fractalType, qx, qy, px, py, cx, cy, gamma, iter, scaleM
       zoom: +pZoom.value, escR: +pEsc.value, iter: +pIter.value,
       dx: +pDx.value, dy: +pDy.value, scaleMode: +scaleMode.value,
       layerOff: +layerOffset.value,
-      convergenceTest: convergenceTest.checked
+      convergenceTest: convergenceTest.checked,
+      escapeMode: escapeMode.value
       // juliaMode: pJuliaMode.checked,
       // juliaRe: +pJuliaRe.value,
       // juliaIm: +pJuliaIm.value
@@ -1270,7 +1305,7 @@ function computeFractal(fractalType, qx, qy, px, py, cx, cy, gamma, iter, scaleM
       low: lowThresh, high: highThresh, lowVal, highVal, hueOffset,
       clipX, clipY, clipZ, clipXVal, clipYVal, clipZVal,
       layerVis, layerVal, ptSize, ptVal, loading, pDx, pDy, scaleMode: scaleMode,
-      pGrid, pZmin, pZmax, pDz, pZoom, pEsc, pIter, apply: applyParams, convergenceTest
+      pGrid, pZmin, pZmax, pDz, pZoom, pEsc, pIter, apply: applyParams, convergenceTest, escapeMode
     };
     /* ------- THREE setup (identical) ------- */
     let scene = new THREE.Scene();
@@ -1817,7 +1852,8 @@ void main () {
 
       w.postMessage({
         gridSize, k, zMin, dz, zoom, escapeR, maxIter, dx, dy,
-        fractalType: curFrac, scaleMode: scaleM, convergenceTest: ui.convergenceTest.checked
+        fractalType: curFrac, scaleMode: scaleM, convergenceTest: ui.convergenceTest.checked,
+        escapeMode: ui.escapeMode.value
         // juliaMode: +pJuliaMode.checked,
         // juliaRe: +pJuliaRe.value,
         // juliaIm: +pJuliaIm.value,
