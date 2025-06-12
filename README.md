@@ -1,6 +1,6 @@
 ## 3D Fractal Visualization
 
-Point cloud render while walking gamma to produce each layer. Workers + ThreeJS, not the most efficient but it works pretty well!
+Point cloud render while using a gamma scale factor each iteration to produce each layer. Workers + ThreeJS, not the most efficient but it works pretty well!
 
 You can play around with nearly 50 different fractals. 
 
