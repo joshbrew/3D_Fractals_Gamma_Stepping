@@ -1,0 +1,1311 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>WebGPU Fractal with Scale Factor, Layers & SPLIT_POSITION_COUNT Chunking</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            font-family: sans-serif;
+            background: #111;
+            color: #eee;
+            display: flex;
+            height: 100vh;
+        }
+
+        #canvas-container {
+            position: relative;
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+            height: 100%;
+        }
+
+        /* Let the canvas size be controlled via JS, not CSS width:100%/height:100% */
+        #gpu-canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+        }
+
+        /* ————————————————————————————————————————————————————
+       YOUR UI PANEL
+    ————————————————————————————————————————————————————— */
+        #ui {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background: rgba(0, 0, 0, 0.6);
+            padding: 10px;
+            border-radius: 6px;
+            z-index: 10;
+            font-size: 14px;
+            max-width: 380px;
+            max-height: 90vh;
+            overflow-y: auto;
+            transition: max-height 0.3s ease;
+        }
+
+        /* header bar */
+        #ui .ui-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+            cursor: pointer;
+        }
+
+        #ui .ui-header span {
+            font-weight: bold;
+            user-select: none;
+        }
+
+        #ui .ui-header button {
+            background: none;
+            border: none;
+            color: #eee;
+            font-size: 18px;
+            line-height: 1;
+            cursor: pointer;
+            padding: 0;
+            user-select: none;
+        }
+
+        /* when collapsed, hide the content */
+        #ui.collapsed #ui-content {
+            display: none;
+        }
+
+        /* rest of your existing row/label styles */
+        #ui .row {
+            margin-bottom: 8px;
+        }
+
+        #ui label {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        #ui input[type=range],
+        #ui input[type=number],
+        #ui select {
+            margin-left: 8px;
+            flex: 1;
+        }
+
+        #ui output {
+            width: 50px;
+            text-align: right;
+            margin-left: 8px;
+            display: inline-block;
+        }
+
+        #ui input[type=checkbox] {
+            margin-left: 8px;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="canvas-container">
+        <canvas id="gpu-canvas"></canvas>
+        <div id="ui">
+            <div class="ui-header">
+                <span>☰ Menu</span>
+                <button id="toggle-ui" aria-label="Toggle Menu">–</button>
+            </div>
+            <div id="ui-content">
+                <!-- Resolution slider -->
+                <div class="row">
+                    <label>
+                        Resolution:
+                        <input id="gridSize" type="range" min="128" max="4096" step="64" value="512">
+                        <output id="gridSizeOut">512</output>
+                    </label>
+                </div>
+                <!-- Layers slider -->
+                <div class="row">
+                    <label>
+                        Layers:
+                        <input id="layers" type="range" min="1" max="16" step="1" value="1">
+                        <output id="layersOut">1</output>
+                    </label>
+                </div>
+                <!-- Layer index to view -->
+                <div class="row">
+                    <label>
+                        Layer:
+                        <input id="layerIndex" type="range" min="0" max="3" step="1" value="0">
+                        <output id="layerIndexOut">0</output>
+                    </label>
+                </div>
+                <!-- zMin and dz for gamma calculation -->
+                <div class="row">
+                    <label>
+                        zMin:
+                        <input id="zMin" type="number" step="0.1" value="0.0">
+                        <output id="zMinOut">0.0</output>
+                    </label>
+                </div>
+                <div class="row">
+                    <label>
+                        dz:
+                        <input id="dz" type="number" step="0.01" value="0.2">
+                        <output id="dzOut">0.2</output>
+                    </label>
+                </div>
+                <!-- Fractal type -->
+                <div class="row">
+                    <label>
+                        Fractal:
+                        <select id="fractalType">
+                            <option value="0">Mandelbrot</option>
+                            <option value="1">Tricorn</option>
+                            <option value="2">Burning Ship</option>
+                            <option value="3">Perpendicular Mandelbrot</option>
+                            <option value="4">Celtic</option>
+                            <option value="5">Buffalo</option>
+                            <option value="6">Phoenix</option>
+                            <option value="7">Cubic Multibrot (z³ + c)</option>
+                            <option value="8">Quartic Multibrot (z⁴ + c)</option>
+                            <option value="9">Cosine</option>
+                            <option value="10">Sine</option>
+                            <option value="11">Heart</option>
+                            <option value="12">Perpendicular Buffalo</option>
+                            <option value="13">Spiral Mandelbrot</option>
+                            <option value="14">Quintic Multibrot (z⁵ + c)</option>
+                            <option value="15">Sextic Multibrot (z⁶ + c)</option>
+                            <option value="16">Tangent fractal (tan z + c)</option>
+                            <option value="17">Exponential fractal (exp z + c)</option>
+                            <option value="18">Septic Multibrot (z⁷ + c)</option>
+                            <option value="19">Octic Multibrot (z⁸ + c)</option>
+                            <option value="20">Inverse Mandelbrot (1/z² + c)</option>
+                            <option value="21">Burning Ship Deep Zoom</option>
+                            <option value="22">Cubic Burning Ship (|z|³ + c)</option>
+                            <option value="23">Quartic Burning Ship (|z|⁴ + c)</option>
+                            <option value="24">Quintic Burning Ship (|z|⁵ + c)</option>
+                            <option value="25">Hexic Burning Ship (|z|⁶ + c)</option>
+                            <option value="26">Nova (Newton z³−1)</option>
+                            <option value="27">Man-o-War</option>
+                            <option value="30">Inverse Cubic (1/z³ + c)</option>
+                            <option value="31">Inverse Quartic (1/z⁴ + c)</option>
+                            <option value="32">Inverse Quintic (1/z⁵ + c)</option>
+                            <option value="33">Inverse Sextic (1/z⁶ + c)</option>
+                            <option value="34">Inverse Septic (1/z⁷ + c)</option>
+                            <option value="35">Inverse Octic (1/z⁸ + c)</option>
+                            <option value="36">Inverse Burning Ship</option>
+                            <option value="37">Inverse Tricorn</option>
+                            <option value="38">Inverse Celtic</option>
+                            <option value="39">Inverse Phoenix</option>
+                            <option value="40">Tri-Nova</option>
+                            <option value="41">Nova-Mandelbrot</option>
+                            <option value="42">Nova 2 (inverse)</option>
+                            <option value="43">Nova 2 variant</option>
+                            <option value="44">Quartic-Nova</option>
+                            <option value="45">Flower Nova</option>
+                            <option value="46">Scatter-Nova</option>
+                        </select>
+                        <output id="fractalTypeOut">0</output>
+                    </label>
+                </div>
+                <!-- Zoom & Pan -->
+                <div class="row">
+                    <label>
+                        Zoom:
+                        <input id="zoom" type="range" min="0.001" max="10" step="0.001" value="4.0">
+                        <output id="zoomOut">4.00</output>
+                    </label>
+                </div>
+                <div class="row">
+                    <label>
+                        Pan X:
+                        <input id="dx" type="range" min="-2" max="2" step="0.01" value="0.0">
+                        <output id="dxOut">0.00</output>
+                    </label>
+                </div>
+                <div class="row">
+                    <label>
+                        Pan Y:
+                        <input id="dy" type="range" min="-2" max="2" step="0.01" value="0.0">
+                        <output id="dyOut">0.00</output>
+                    </label>
+                </div>
+                <!-- Iterations & Escape -->
+                <div class="row">
+                    <label>
+                        Max Iter:
+                        <input id="maxIter" type="range" min="50" max="5000" step="50" value="150">
+                        <output id="maxIterOut">150</output>
+                    </label>
+                </div>
+                <div class="row">
+                    <label>
+                        Escape R:
+                        <input id="escapeR" type="range" min="1" max="20" step="0.1" value="4.0">
+                        <output id="escapeROut">4.0</output>
+                    </label>
+                </div>
+                <!-- Scale Mode -->
+                <div class="row">
+                    <label>
+                        Scale Mode:
+                        <select id="scaleMode">
+                            <option value="0">None</option>
+                            <option value="1">Scale Up</option>
+                            <option value="2">Scale Down</option>
+                        </select>
+                        <output id="scaleModeOut">0</output>
+                    </label>
+                </div>
+                <!-- Gamma slider -->
+                <div class="row">
+                    <label>
+                        Gamma:
+                        <input id="gamma" type="range" min="0.1" max="5.0" step="0.1" value="1.0">
+                        <output id="gammaOut">1.0</output>
+                    </label>
+                </div>
+                <!-- Epsilon & Convergence -->
+                <div class="row">
+                    <label>
+                        Epsilon:
+                        <input id="epsilon" type="range" min="0.000001" max="0.01" step="0.000001" value="0.000001">
+                        <output id="epsilonOut">1e-6</output>
+                    </label>
+                </div>
+                <div class="row">
+                    <label>
+                        Convergence Test:
+                        <input id="convergenceTest" type="checkbox">
+                        <!-- no output needed if you don’t display its value -->
+                    </label>
+                </div>
+                <div class="row">
+                    <label>
+                        Escape Mode:
+                        <select id="escapeMode">
+                            <option value="0">Converge</option>
+                            <option value="1">Diverge</option>
+                        </select>
+                        <output id="escapeModeOut">0</output>
+                    </label>
+                </div>
+                <!-- SPLIT_POSITION_COUNT -->
+                <div class="row">
+                    <label>
+                        Max Pixels/Split:
+                        <input id="splitCount" type="number" step="100000" min="100000" value="8000000">
+                        <output id="splitCountOut">8000000</output>
+                    </label>
+                </div>
+            </div>
+        </div>
+
+        <script type="module">
+
+            const ui = document.getElementById('ui');
+            const button = document.getElementById('toggle-ui');
+            button.addEventListener('click', () => {
+                const isCollapsed = ui.classList.toggle('collapsed');
+                button.textContent = isCollapsed ? '+' : '–';
+            });
+            // Optional: also toggle if user clicks the header itself
+            ui.querySelector('.ui-header').addEventListener('click', (e) => {
+                if (e.target !== button) button.click();
+            });
+            // Helper to link slider/select/checkbox and callback on change
+            function setupSlider(id, onChange) {
+                const slider = document.getElementById(id);
+                const out = document.getElementById(id + 'Out');
+                const updateOutput = () => {
+                    if (!out) return; // skip if no corresponding <output>
+                    let v = slider.value;
+                    if (id === 'epsilon') {
+                        out.value = parseFloat(v).toExponential();
+                    } else if (['zoom', 'dx', 'dy'].includes(id)) {
+                        out.value = parseFloat(v).toFixed(2);
+                    } else {
+                        out.value = parseInt(v);
+                    }
+                };
+                slider.addEventListener('input', () => {
+                    updateOutput();
+                    onChange(parseFloat(slider.value));
+                });
+                updateOutput();
+                return slider;
+            }
+
+
+            function setupSelect(id, onChange) {
+                const sel = document.getElementById(id);
+                const out = document.getElementById(id + 'Out');
+                const updateOutput = () => {
+                    if (out) out.value = sel.value;
+                };
+                sel.addEventListener('change', () => {
+                    updateOutput();
+                    onChange(sel.value);
+                });
+                updateOutput();
+                onChange(sel.value);
+                return sel;
+            }
+
+
+            function setupCheckbox(id, onChange) {
+                const cb = document.getElementById(id);
+                cb.addEventListener('change', () => {
+                    onChange(cb.checked);
+                });
+                onChange(cb.checked);
+                return cb;
+            }
+
+            async function initWebGPU() {
+                if (!navigator.gpu) {
+                    alert('WebGPU not supported');
+                    throw new Error('WebGPU not supported');
+                }
+                const adapter = await navigator.gpu.requestAdapter();
+                if (!adapter) {
+                    alert('No GPU adapter found');
+                    throw new Error('No GPU adapter');
+                }
+                const device = await adapter.requestDevice();
+                return device;
+            }
+
+            async function main() {
+
+
+                // Compute WGSL: per-layer gamma, chunked by tileOffsetX/tileOffsetY/tileWidth/tileHeight
+                const computeWGSL = `
+// Compute WGSL (entry point: main)
+struct Params {
+  gridSize: u32,
+  maxIter: u32,
+  fractalType: u32,
+  scaleMode: u32,
+  zoom: f32,
+  dx: f32,
+  dy: f32,
+  escapeR: f32,
+  gamma: f32,
+  layerIndex: u32,
+  epsilon: f32,
+  convergenceTest: u32,
+  escapeMode: u32,
+  tileOffsetX: u32,
+  tileOffsetY: u32,
+  tileWidth: u32,
+  tileHeight: u32,
+  aspect: f32,       
+  _pad0: u32,
+  _pad1: u32,
+  _pad2: u32,        // adjust so struct size remains multiple of 16 (or fits your uniformBufferSize)
+};
+@group(0) @binding(0) var<uniform> params: Params;
+@group(1) @binding(0) var storageTex: texture_storage_2d_array<rgba8unorm, write>;
+
+// Helpers:
+fn shipPower(ax: f32, ay: f32, p: f32) -> vec2<f32> {
+  // r = sqrt(ax^2 + ay^2)^p ; θ = atan2(ay,ax)*p
+  let r2 = ax*ax + ay*ay;
+  // avoid negative or zero? r2>=0
+  let r = pow(r2, 0.5 * p);
+  let theta = atan2(ay, ax) * p;
+  return vec2<f32>(r * cos(theta), r * sin(theta));
+}
+
+fn invPower(qx: f32, qy: f32, p: f32) -> vec2<f32> {
+  // 1/(qx+ i qy)^p via polar
+  let r2 = qx*qx + qy*qy + 1e-9;
+  let rp = pow(r2, 0.5 * p);
+  let th = atan2(qy, qx) * p;
+  let inv = 1.0 / rp;
+  return vec2<f32>(inv * cos(th), -inv * sin(th));
+}
+
+struct InitialZ { qx: f32, qy: f32, px: f32, py: f32 };
+
+fn getInitialZ(typ: u32, x0: f32, y0: f32) -> InitialZ {
+  // Newton-typ indices: 26,40-46
+  let isNewton =
+      (typ == 26u) || (typ == 40u) || (typ == 41u) || (typ == 42u)
+      || (typ == 43u) || (typ == 44u) || (typ == 45u) || (typ == 46u);
+  if (isNewton) {
+    return InitialZ(1.0, 0.0, 0.0, 0.0);
+  }
+  // inverse families 30-39 start at c
+  if (typ >= 30u && typ <= 39u) {
+    return InitialZ(x0, y0, 0.0, 0.0);
+  }
+  // default start at 0
+  return InitialZ(0.0, 0.0, 0.0, 0.0);
+}
+
+// Main fractal step returning new z and new px,py:
+struct FractalResult { nx: f32, ny: f32, npx: f32, npy: f32 };
+
+fn computeFractal(typ: u32, qx: f32, qy: f32, px: f32, py: f32,
+                  cx: f32, cy: f32, gamma: f32, iter: u32, scaleMode: u32) -> FractalResult {
+  let s = 1.0 + f32(iter) * (gamma - 1.0);
+  var ccx = cx;
+  var ccy = cy;
+  if (scaleMode == 1u) {
+    ccx = cx * s;
+    ccy = cy * s;
+  } else if (scaleMode == 2u) {
+    ccx = cx / s;
+    ccy = cy / s;
+  }
+  let a = abs(qx);
+  let b = abs(qy);
+  var nx: f32 = 0.0;
+  var ny: f32 = 0.0;
+  var npx = px;
+  var npy = py;
+
+  switch(typ) {
+    case 1u: { // Tricorn
+      nx = qx*qx - qy*qy + ccx;
+      ny = -2.0*qx*qy + ccy;
+    }
+    case 2u: { // Burning Ship
+      nx = a*a - b*b + ccx;
+      ny = 2.0*a*b + ccy;
+    }
+    case 3u: { // Perpendicular Mandelbrot
+      nx = qx*qx - qy*qy + ccx;
+      ny = -2.0*a*qy + ccy;
+    }
+    case 4u: { // Celtic
+      nx = abs(qx*qx - qy*qy) + ccx;
+      ny = 2.0*qx*qy + ccy;
+    }
+    case 5u: { // Buffalo
+      nx = abs(qx*qx - qy*qy) + ccx;
+      ny = -2.0*qx*qy + ccy;
+    }
+    case 6u: { // Phoenix (λ = -0.5)
+      nx = qx*qx - qy*qy + ccx - 0.5*px;
+      ny = 2.0*qx*qy + ccy - 0.5*py;
+      npx = qx;
+      npy = qy;
+    }
+    case 7u: { // Cubic Multibrot z^3 + c
+      let r2 = qx*qx + qy*qy;
+      let theta = atan2(qy, qx);
+      let r3 = pow(r2, 1.5);
+      nx = r3 * cos(3.0 * theta) + ccx;
+      ny = r3 * sin(3.0 * theta) + ccy;
+    }
+    case 8u: { // Quartic Multibrot z^4 + c
+      let r2 = qx*qx + qy*qy;
+      let theta = atan2(qy, qx);
+      let r4 = r2*r2;
+      nx = r4 * cos(4.0 * theta) + ccx;
+      ny = r4 * sin(4.0 * theta) + ccy;
+    }
+    case 9u: { // Cosine
+      nx = cos(qx)*cosh(qy) + ccx;
+      ny = -sin(qx)*sinh(qy) + ccy;
+    }
+    case 10u: { // Sine
+      nx = sin(qx)*cosh(qy) + ccx;
+      ny = cos(qx)*sinh(qy) + ccy;
+    }
+    case 11u: { // Heart
+      let rx = abs(qx);
+      nx = rx*rx - qy*qy + ccx;
+      ny = 2.0*rx*qy + ccy;
+    }
+    case 12u: { // Perpendicular Buffalo
+      nx = abs(qx*qx - qy*qy) + ccx;
+      ny = -2.0*a*qy + ccy;
+    }
+    case 13u: { // Spiral Mandelbrot with twist
+      let THETA = 0.35 + 2.0*gamma;
+      let wRe = cos(THETA);
+      let wIm = sin(THETA);
+      let zx2 = qx*qx - qy*qy;
+      let zy2 = 2.0*qx*qy;
+      let tx = wRe*zx2 - wIm*zy2;
+      let ty = wRe*zy2 + wIm*zx2;
+      nx = tx + ccx;
+      ny = ty + ccy;
+    }
+    case 14u: { // Quintic z^5 + c
+      let r2 = qx*qx + qy*qy;
+      let theta = atan2(qy, qx);
+      let r5 = pow(r2, 2.5);
+      nx = r5*cos(5.0*theta) + ccx;
+      ny = r5*sin(5.0*theta) + ccy;
+    }
+    case 15u: { // Sextic z^6 + c
+      let r2 = qx*qx + qy*qy;
+      let theta = atan2(qy, qx);
+      let r6 = r2*r2*r2;
+      nx = r6*cos(6.0*theta) + ccx;
+      ny = r6*sin(6.0*theta) + ccy;
+    }
+    case 16u: { // Tangent fractal tan(z)+c
+      let sin2x = sin(2.0*qx);
+      let sinh2y = sinh(2.0*qy);
+      let denom = cos(2.0*qx) + cosh(2.0*qy) + 1e-9;
+      nx = sin2x/denom + ccx;
+      ny = sinh2y/denom + ccy;
+    }
+    case 17u: { // Exponential fractal exp(z)+c
+      let ex = exp(qx);
+      nx = ex*cos(qy) + ccx;
+      ny = ex*sin(qy) + ccy;
+    }
+    case 18u: { // Septic z^7 + c
+      let r2 = qx*qx + qy*qy;
+      let theta = atan2(qy, qx);
+      let r7 = pow(r2, 3.5);
+      nx = r7*cos(7.0*theta) + ccx;
+      ny = r7*sin(7.0*theta) + ccy;
+    }
+    case 19u: { // Octic z^8 + c
+      let r2 = qx*qx + qy*qy;
+      let theta = atan2(qy, qx);
+      let r8 = r2*r2*r2*r2;
+      nx = r8*cos(8.0*theta) + ccx;
+      ny = r8*sin(8.0*theta) + ccy;
+    }
+    case 20u: { // Inverse Mandelbrot 1/z^2 + c
+      let r2 = qx*qx + qy*qy + 1e-9;
+      let invv = 1.0/(r2*r2);
+      nx = (qx*qx - qy*qy)*invv + ccx;
+      ny = (2.0*qx*qy)*invv + ccy;
+    }
+    case 21u: { // Burning Ship deep zoom
+      // specific centre and sub; here we replicate JS: but needs cx,cy or ccx,ccy
+      // Example:
+      let centerRe = -1.7443359375;
+      let centerIm = -0.017451171875;
+      let sub = 0.04;
+      let dx2 = ccx*sub + centerRe;
+      let dy2 = ccy*sub + centerIm;
+      nx = a*a - b*b + dx2 * s;
+      ny = 2.0*a*b + dy2 * s;
+    }
+    case 22u: { // Cubic Burning Ship |z|^3 + c
+      let pr = shipPower(a, b, 3.0);
+      nx = pr.x + ccx;
+      ny = pr.y + ccy;
+    }
+    case 23u: { // Quartic Burning Ship |z|^4 + c
+      let pr = shipPower(a, b, 4.0);
+      nx = pr.x + ccx;
+      ny = pr.y + ccy;
+    }
+    case 24u: { // Quintic Burning Ship |z|^5 + c
+      let pr = shipPower(a, b, 5.0);
+      nx = pr.x + ccx;
+      ny = pr.y + ccy;
+    }
+    case 25u: { // Hexic Burning Ship |z|^6 + c
+      let pr = shipPower(a, b, 6.0);
+      nx = pr.x + ccx;
+      ny = pr.y + ccy;
+    }
+    case 26u: { // Nova: z - (z^3-1)/(3 z^2) + c
+      let zx2 = qx*qx - qy*qy;
+      let zy2 = 2.0*qx*qy;
+      let zx3 = zx2*qx - zy2*qy;
+      let zy3 = zx2*qy + zy2*qx;
+      let numx = zx3 - 1.0;
+      let numy = zy3;
+      let denx = 3.0*zx2;
+      let deny = 3.0*zy2;
+      let den2 = denx*denx + deny*deny + 1e-9;
+      let qxDiv = (numx*denx + numy*deny)/den2;
+      let qyDiv = (numy*denx - numx*deny)/den2;
+      nx = qx - qxDiv + ccx;
+      ny = qy - qyDiv + ccy;
+    }
+    case 27u: { // Man-o-War: z^2 + c + prev
+      nx = qx*qx - qy*qy + ccx + px;
+      ny = 2.0*qx*qy + ccy + py;
+      npx = qx;
+      npy = qy;
+    }
+    case 30u, 31u, 32u, 33u, 34u, 35u: { // inv 3..8
+      // p = type-27 maybe? but in JS they had invPowerP
+      // Here assume mapping typ->p: e.g. 30->3,31->4,... so p = f32(typ-27)?
+      let p = f32(typ - 27u); // 30->3, 31->4, ..., 35->8
+      let pr = invPower(qx, qy, p);
+      nx = pr.x + ccx;
+      ny = pr.y + ccy;
+    }
+    case 36u: { // Inverse Burning-Ship
+      let a2 = abs(qx);
+      let b2 = abs(qy);
+      let r2 = qx*qx + qy*qy + 1e-9;
+      let invv = 1.0/(r2*r2);
+      nx = (a2*a2 - b2*b2)*invv + ccx;
+      ny = (2.0*a2*b2)*invv + ccy;
+    }
+    case 37u: { // Inverse Tricorn
+      let r2 = qx*qx + qy*qy + 1e-9;
+      let invv = 1.0/(r2*r2);
+      nx = (qx*qx - qy*qy)*invv + ccx;
+      ny = (-2.0*qx*qy)*invv + ccy;
+    }
+    case 38u: { // Inverse Celtic
+      let r2 = qx*qx + qy*qy + 1e-9;
+      let invv = 1.0/(r2*r2);
+      let rx = abs(qx*qx - qy*qy);
+      nx = rx*invv + ccx;
+      ny = (2.0*qx*qy)*invv + ccy;
+    }
+    case 39u: { // Inverse Phoenix
+      let r2 = qx*qx + qy*qy + 1e-9;
+      let invv = 1.0/(r2*r2);
+      let zx2 = (qx*qx - qy*qy)*invv;
+      let zy2 = (2.0*qx*qy)*invv;
+      nx = zx2 + ccx - 0.5*px;
+      ny = zy2 + ccy - 0.5*py;
+      npx = qx;
+      npy = qy;
+    }
+    case 40u: { // Tri-Nova
+      let zx2 = qx*qx - qy*qy;
+      let zy2 = 2.0*qx*qy;
+      let zx4 = zx2*zx2 - zy2*zy2;
+      let zy4 = 2.0*zx2*zy2;
+      nx = 1.3333333*qx - 0.3333333*zx4 + ccx;
+      ny = 1.3333333*qy - 0.3333333*zy4 + ccy;
+    }
+    case 41u: { // Nova-Mandelbrot
+      let zx2 = qx*qx - qy*qy;
+      let zy2 = 2.0*qx*qy;
+      let zx3 = zx2*qx - zy2*qy;
+      let zy3 = zx2*qy + zy2*qx;
+      let denx = 3.0*zx2;
+      let deny = 3.0*zy2;
+      let den2 = denx*denx + deny*deny + 1e-9;
+      let numx = zx3 - 1.0;
+      let numy = zy3;
+      let divx = (numx*denx + numy*deny)/den2;
+      let divy = (numy*denx - numx*deny)/den2;
+      nx = qx - divx + ccx;
+      ny = qy - divy + ccy;
+    }
+    case 42u: { // Nova 2 (inverse variant)
+      // 1) 1/z
+      let r2_inv = 1.0/(qx*qx + qy*qy + 1e-9);
+      let izRe = qx * r2_inv;
+      let izIm = -qy * r2_inv;
+      // 2) (1/z)^2, (1/z)^4
+      let zx2 = izRe*izRe - izIm*izIm;
+      let zy2 = 2.0*izRe*izIm;
+      let zx4 = zx2*zx2 - zy2*zy2;
+      let zy4 = 2.0*zx2*zy2;
+      // 3) forward Quad-Nova step on 1/z
+      let fRe = 1.3333333*izRe - 0.3333333*zx4 + ccx;
+      let fIm = 1.3333333*izIm - 0.3333333*zy4 + ccy;
+      // 4) invert back
+      let den = 1.0/(fRe*fRe + fIm*fIm + 1e-9);
+      nx = fRe*den;
+      ny = -fIm*den;
+    }
+    case 43u: { // Nova 2 variant
+      let zx2 = qx*qx - qy*qy;
+      let zy2 = 2.0*qx*qy;
+      let zx4 = zx2*zx2 - zy2*zy2;
+      let zy4 = 2.0*zx2*zy2;
+      let fRe = 1.3333333*qx - 0.3333333*zx4 + ccx;
+      let fIm = 1.3333333*qy - 0.3333333*zy4 + ccy;
+      let invR2 = 1.0/(fRe*fRe + fIm*fIm + 1e-9);
+      nx = fRe*invR2;
+      ny = -fIm*invR2;
+    }
+    case 44u: { // Quartic-Nova
+      let zx2 = qx*qx - qy*qy;
+      let zy2 = 2.0*qx*qy;
+      let zx3 = zx2*qx - zy2*qy;
+      let zy3 = zx2*qy + zy2*qx;
+      let zx4 = zx3*qx - zy3*qy;
+      let zy4 = zx3*qy + zy3*qx;
+      let numx = zx4 - 1.0;
+      let numy = zy4;
+      let denx = 4.0*(zx2*qx - zy2*qy);
+      let deny = 4.0*(zx2*qy + zy2*qx);
+      let den2 = denx*denx + deny*deny + 1e-9;
+      let divx = (numx*denx + numy*deny)/den2;
+      let divy = (numy*denx - numx*deny)/den2;
+      nx = qx - divx + ccx;
+      ny = qy - divy + ccy;
+    }
+case 45u: { // Flower Nova
+  // seed z0 = c on first iteration
+  var zx0 = qx;
+  var zy0 = qy;
+  if (iter == 0u) {
+    zx0 = cx;
+    zy0 = cy;
+  }
+  // build z^2
+  let zx2 = zx0*zx0 - zy0*zy0;
+  let zy2 = 2.0*zx0*zy0;
+  // build z^3 and z^4
+  let zx3 = zx2*zx0 - zy2*zy0;
+  let zy3 = zx2*zy0 + zy2*zx0;
+  let zx4 = zx3*zx0 - zy3*zy0;
+  let zy4 = zx3*zy0 + zy3*zx0;
+  // Newton-style divisor = 4*z^3
+  let denx = 4.0*zx3;
+  let deny = 4.0*zy3;
+  let den2 = denx*denx + deny*deny + 1e-9;
+  // numerator = z^4 – 1
+  let numx = zx4 - 1.0;
+  let numy = zy4;
+  // (z^4–1)/(4z^3)
+  let divx = (numx*denx + numy*deny) / den2;
+  let divy = (numy*denx - numx*deny) / den2;
+  // forward candidate: z – (...) + c·s
+  let fx = zx0 - divx + ccx;
+  let fy = zy0 - divy + ccy;
+  // NEGATE the result
+  nx = -fx;
+  ny = -fy;
+  break;
+}
+case 46u: { // Scatter-Nova
+  // seed z0 = c on first iteration
+  var zx0 = qx;
+  var zy0 = qy;
+  if (iter == 0u) {
+    zx0 = cx;
+    zy0 = cy;
+  }
+  // build z^2
+  let zx2 = zx0*zx0 - zy0*zy0;
+  let zy2 = 2.0*zx0*zy0;
+  // build z^3 and z^4
+  let zx3 = zx2*zx0 - zy2*zy0;
+  let zy3 = zx2*zy0 + zy2*zx0;
+  let zx4 = zx3*zx0 - zy3*zy0;
+  let zy4 = zx3*zy0 + zy3*zx0;
+  // denominator = 4*z^3
+  let denx = 4.0*zx3;
+  let deny = 4.0*zy3;
+  let den2 = denx*denx + deny*deny + 1e-9;
+  // numerator = z^4 – 1
+  let numx = zx4 - 1.0;
+  let numy = zy4;
+  // (z^4–1)/(4z^3)
+  let divx = (numx*denx + numy*deny) / den2;
+  let divy = (numy*denx - numx*deny) / den2;
+  // forward Newton candidate: z – (...) + c·s
+  let fx = zx0 - divx + ccx;
+  let fy = zy0 - divy + ccy;
+  // invert: z_{n+1} = 1 / f
+  let invR2 = 1.0 / (fx*fx + fy*fy + 1e-9);
+  nx = fx * invR2;
+  ny = -fy * invR2;
+  break;
+}
+    default: { // Mandelbrot
+      nx = qx*qx - qy*qy + ccx;
+      ny = 2.0*qx*qy + ccy;
+    }
+  }
+  return FractalResult(nx, ny, npx, npy);
+}
+
+
+@compute @workgroup_size(8,8,1)
+fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
+  let lx = gid.x;
+  let ly = gid.y;
+  let gx = params.tileOffsetX + lx;
+  let gy = params.tileOffsetY + ly;
+  if (gx >= params.gridSize || gy >= params.gridSize) {
+    return;
+  }
+  let invF = 1.0 / f32(params.gridSize - 1u);
+    // normalized [0,1]
+    let nx = f32(gx) * invF;
+    let ny = f32(gy) * invF;
+    // center at zero, scale X by aspect so fractal isn't stretched
+    let centeredX = (nx - 0.5) * params.aspect;
+    let centeredY = (ny - 0.5);
+    let cx = centeredX * params.zoom + params.dx;
+    let cy = centeredY * params.zoom + params.dy;
+
+  var init = getInitialZ(params.fractalType, cx, cy);
+  var qx = init.qx;
+  var qy = init.qy;
+  var px = init.px;
+  var py = init.py;
+  var iter: u32 = 0u;
+  let escapeR2 = params.escapeR * params.escapeR;
+
+  loop {
+    if (iter >= params.maxIter) {
+      break;
+    }
+    if (qx*qx + qy*qy > escapeR2) {
+      break;
+    }
+    let res = computeFractal(
+      params.fractalType, qx, qy, px, py,
+      cx, cy, params.gamma, iter, params.scaleMode
+    );
+    let nx = res.nx;
+    let ny = res.ny;
+    let npx = res.npx;
+    let npy = res.npy;
+    // convergence or escape logic...
+    if (params.convergenceTest == 1u) {
+      if (params.escapeMode == 1u) {
+        if (nx*nx + ny*ny > escapeR2) { iter = iter + 1u; break; }
+      } else {
+        let dx_ = nx - qx;
+        let dy_ = ny - qy;
+        if (dx_*dx_ + dy_*dy_ < params.epsilon * params.epsilon) {
+          iter = iter + 1u; break;
+        }
+      }
+    } else {
+      if (nx*nx + ny*ny > escapeR2) {
+        iter = iter + 1u; break;
+      }
+    }
+    px = npx; py = npy;
+    qx = nx; qy = ny;
+    iter = iter + 1u;
+  }
+
+  let ratio = f32(iter) / f32(params.maxIter);
+  let col = vec4<f32>(ratio, ratio, ratio, 1.0);
+  textureStore(
+    storageTex,
+    vec2<i32>(i32(lx), i32(ly)),
+    i32(params.layerIndex),
+    col
+  );
+}
+`;
+
+                // Render WGSL: fullscreen triangle sampling the chosen layer from the array
+                const vertexWGSL = `
+// Vertex WGSL: outputs clip-space pos and UV
+struct VSOut {
+  @builtin(position) pos: vec4<f32>,
+  @location(0) uv: vec2<f32>,
+};
+
+@vertex
+fn vs_main(@builtin(vertex_index) vid: u32) -> VSOut {
+  // full-screen quad (two triangles) via vertex_index 0..5
+  var positions = array<vec2<f32>, 6>(
+    vec2<f32>(-1.0, -1.0),
+    vec2<f32>( 1.0, -1.0),
+    vec2<f32>(-1.0,  1.0),
+    vec2<f32>(-1.0,  1.0),
+    vec2<f32>( 1.0, -1.0),
+    vec2<f32>( 1.0,  1.0)
+  );
+  let p = positions[vid];
+  var out: VSOut;
+  out.pos = vec4<f32>(p, 0.0, 1.0);
+  // UV from [-1,1] to [0,1]
+  out.uv = p * 0.5 + vec2<f32>(0.5, 0.5);
+  return out;
+}
+
+`;
+                const fragmentWGSL = `
+// Fragment WGSL: sample the computed texture array at layerIndex
+@group(0) @binding(0) var myTexture: texture_2d_array<f32>;
+@group(0) @binding(1) var mySampler: sampler;
+struct RenderParams {
+  layerIndex: u32,
+  // add padding if needed; but if only one u32, pack into a 256-byte uniform via JS
+};
+@group(0) @binding(2) var<uniform> renderParams: RenderParams;
+
+struct FSIn {
+  @location(0) uv: vec2<f32>
+};
+
+@fragment
+fn fs_main(input: FSIn) -> @location(0) vec4<f32> {
+    let uv = input.uv;
+    let color = textureSample(myTexture, mySampler, uv, i32(renderParams.layerIndex));
+    return color;
+}
+`;
+
+
+
+
+                // Grab canvas and initialize WebGPU
+                const canvas = document.getElementById('gpu-canvas');
+                const device = await initWebGPU();
+                const context = canvas.getContext('webgpu');
+
+                // --- 1) Compute uniform-buffer size and alignment ---
+                // For compute: struct has 21 fields × 4 bytes + 4 = 84 bytes; we'll pad to 256 for dynamic offsets
+                const uniformBufferSize = 21 * 4;   // 84 bytes
+                const uniformStride = 256;       // must be multiple of 256
+
+                // --- 2) Bind-group layouts & pipeline layout ---
+                const bgLayout0 = device.createBindGroupLayout({
+                    entries: [{
+                        binding: 0,
+                        visibility: GPUShaderStage.COMPUTE,
+                        buffer: { type: 'uniform', hasDynamicOffset: true, minBindingSize: uniformBufferSize }
+                    }]
+                });
+                const bgLayout1 = device.createBindGroupLayout({
+                    entries: [{
+                        binding: 0,
+                        visibility: GPUShaderStage.COMPUTE,
+                        storageTexture: { access: 'write-only', format: 'rgba8unorm', viewDimension: '2d-array' }
+                    }]
+                });
+                const pipelineLayout = device.createPipelineLayout({ bindGroupLayouts: [bgLayout0, bgLayout1] });
+
+                // 3) Compute pipeline using explicit layout
+                function createComputePipeline(device, computeWGSL) {
+                    const module = device.createShaderModule({ code: computeWGSL });
+                    return device.createComputePipeline({
+                        layout: pipelineLayout,
+                        compute: { module, entryPoint: 'main' }
+                    });
+                }
+
+                // 4) Render pipeline (auto layout)
+                function createRenderPipeline(device, format, vsCode, fsCode) {
+                    const vsModule = device.createShaderModule({ code: vsCode });
+                    const fsModule = device.createShaderModule({ code: fsCode });
+                    return device.createRenderPipeline({
+                        layout: 'auto',
+                        vertex: { module: vsModule, entryPoint: 'vs_main' },
+                        fragment: { module: fsModule, entryPoint: 'fs_main', targets: [{ format }] },
+                        primitive: { topology: 'triangle-list' }
+                    });
+                }
+
+                let currentAspect = 16 / 9;
+                let init = false;
+                // --- 5) Canvas context setup ---
+                const format = navigator.gpu.getPreferredCanvasFormat();
+                function resizeCanvas() {
+                    // Let canvas fill its parent (#canvas-container) fully
+                    const cw = canvas.clientWidth;
+                    const ch = canvas.clientHeight;
+                    // Set the drawing buffer size in physical pixels:
+                    const pixelWidth = Math.floor(cw * window.devicePixelRatio);
+                    const pixelHeight = Math.floor(ch * window.devicePixelRatio);
+                    canvas.width = pixelWidth;
+                    canvas.height = pixelHeight;
+                    // Configure WebGPU swap chain/context with full size:
+                    context.configure({
+                        device,
+                        format,
+                        alphaMode: 'opaque',
+                        size: [pixelWidth, pixelHeight],
+                    });
+                    // Store aspect ratio for later use in uniforms:
+                    currentAspect = pixelWidth / pixelHeight;
+                    if (init) redraw();
+                }
+                window.addEventListener('resize', resizeCanvas);
+                resizeCanvas();
+                init = true;
+
+
+                // --- 6) Persistent small uniform buffer for render if needed ---
+                // (layerIndex only)
+                const renderUniformStride = 256; // align to 256
+                const renderUniformBuffer = device.createBuffer({
+                    size: renderUniformStride,
+                    usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST
+                });
+
+                // --- 7) Create pipelines & sampler ---
+                const computePipeline = createComputePipeline(device, computeWGSL);
+                const renderPipeline = createRenderPipeline(device, format, vertexWGSL, fragmentWGSL);
+                const sampler = device.createSampler({
+                    magFilter: 'linear', minFilter: 'linear', addressModeU: 'clamp-to-edge', addressModeV: 'clamp-to-edge'
+                });
+
+                // --- 8) Query bind-group layouts ---
+                const computeBindGroupLayout0 = computePipeline.getBindGroupLayout(0);
+                const computeBindGroupLayout1 = computePipeline.getBindGroupLayout(1);
+                const renderBindGroupLayout = renderPipeline.getBindGroupLayout(0);
+
+                // --- 9) State & chunk setup helper ---
+                const paramsState = {
+                    gridSize: 512,
+                    splitCount: 8000000,
+                    layerIndex: 0,
+                    layers: 100,
+                    maxIter: 150,
+                    fractalType: 1,
+                    scaleMode: 1,
+                    zoom: 4.0,
+                    dx: 0.0,
+                    dy: 0.0,
+                    escapeR: 4.0,
+                    zMin: 0.0,
+                    dz: 0.01,
+                    gamma: 1.0,
+                    epsilon: 1e-6,
+                    convergenceTest: false,
+                    escapeMode: 0,
+                };
+
+                let chunkInfos = [];
+                const createChunkTextures = () => {
+                    if (chunkInfos) chunkInfos.forEach(info => info.texture.destroy());
+                    chunkInfos = [];
+                    const G = paramsState.gridSize;
+                    const maxP = paramsState.splitCount;
+                    const tileH = G;
+                    let tileW = Math.floor(maxP / tileH);
+                    if (tileW < 1) tileW = 1;
+                    tileW = Math.min(tileW, G);
+                    const numX = Math.ceil(G / tileW);
+                    for (let tx = 0; tx < numX; tx++) {
+                        const offX = tx * tileW;
+                        const w = Math.min(tileW, G - offX);
+                        if (w <= 0) continue;
+                        const tex = device.createTexture({ size: [w, tileH, 1], format: 'rgba8unorm', usage: GPUTextureUsage.STORAGE_BINDING | GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_SRC });
+                        const view = tex.createView({ dimension: '2d-array', arrayLayerCount: 1 });
+                        chunkInfos.push({ texture: tex, view, offsetX: offX, offsetY: 0, width: w, height: tileH });
+                    }
+                }
+
+                // --- 10) Param packing (padded to uniformStride) ---
+                function makeParamArray(offsetX, offsetY, width, height, layerIndex) {
+                    const buf = new ArrayBuffer(uniformStride);
+                    const dv = new DataView(buf);
+                    let off = 0;
+                    dv.setUint32(off, paramsState.gridSize, true); off += 4;
+                    dv.setUint32(off, paramsState.maxIter, true); off += 4;
+                    dv.setUint32(off, paramsState.fractalType, true); off += 4;
+                    dv.setUint32(off, paramsState.scaleMode, true); off += 4;
+                    dv.setFloat32(off, paramsState.zoom, true); off += 4;
+                    dv.setFloat32(off, paramsState.dx, true); off += 4;
+                    dv.setFloat32(off, paramsState.dy, true); off += 4;
+                    dv.setFloat32(off, paramsState.escapeR, true); off += 4;
+                    dv.setFloat32(off, paramsState.gamma, true); off += 4;
+                    dv.setUint32(off, layerIndex, true); off += 4;
+                    dv.setFloat32(off, paramsState.epsilon, true); off += 4;
+                    dv.setUint32(off, paramsState.convergenceTest ? 1 : 0, true); off += 4;
+                    dv.setUint32(off, paramsState.escapeMode, true); off += 4;
+                    dv.setUint32(off, offsetX, true); off += 4;
+                    dv.setUint32(off, offsetY, true); off += 4;
+                    dv.setUint32(off, width, true); off += 4;
+                    dv.setUint32(off, height, true); off += 4;
+                    dv.setFloat32(off, currentAspect, true); off += 4;
+                    // remaining bytes are zero
+                    // dv.setUint32(off, 0, true); off += 4;
+                    // dv.setUint32(off, 0, true); off += 4;
+                    // dv.setUint32(off, 0, true); off += 4;
+                    return buf;
+                }
+
+                // --- 11) Main redraw: compute + render passes ---
+                function redraw() {
+                    createChunkTextures();
+                    const N = chunkInfos.length;
+                    const layer = paramsState.layerIndex;
+
+                    // a) upload compute uniforms into big buffer
+                    const bigSize = uniformStride * N;
+                    const bigBuf = device.createBuffer({ size: bigSize, usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST });
+                    for (let i = 0; i < N; i++) {
+                        const info = chunkInfos[i];
+                        const arr = makeParamArray(info.offsetX, info.offsetY, info.width, info.height, layer);
+                        device.queue.writeBuffer(bigBuf, i * uniformStride, arr);
+                    }
+
+                    // b) build bind-groups
+                    const computeUniformBG = device.createBindGroup({ layout: bgLayout0, entries: [{ binding: 0, resource: { buffer: bigBuf, size: uniformStride } }] });
+                    const storageBGs = chunkInfos.map(info => device.createBindGroup({ layout: bgLayout1, entries: [{ binding: 0, resource: info.view }] }));
+
+                    // c) write render-layer uniform
+                    {
+                        const tmp = new ArrayBuffer(renderUniformStride);
+                        new DataView(tmp).setUint32(0, layer, true);
+                        device.queue.writeBuffer(renderUniformBuffer, 0, tmp);
+                    }
+
+                    // d) encode passes
+                    const encoder = device.createCommandEncoder();
+
+                    // compute
+                    const cpass = encoder.beginComputePass();
+                    cpass.setPipeline(computePipeline);
+                    for (let i = 0; i < N; i++) {
+                        const info = chunkInfos[i];
+                        cpass.setBindGroup(0, computeUniformBG, [i * uniformStride]);
+                        cpass.setBindGroup(1, storageBGs[i]);
+                        cpass.dispatchWorkgroups(
+                            Math.ceil(info.width / 8), Math.ceil(info.height / 8), 1
+                        );
+                    }
+                    cpass.end();
+
+                    // render
+                    const view = context.getCurrentTexture().createView();
+                    const rpass = encoder.beginRenderPass({
+                        colorAttachments: [{ view, clearValue: { r: 0, g: 0, b: 0, a: 1 }, loadOp: 'clear', storeOp: 'store' }]
+                    });
+                    rpass.setPipeline(renderPipeline);
+                    for (const info of chunkInfos) {
+                        const x = (info.offsetX / paramsState.gridSize) * canvas.width;
+                        const y = (info.offsetY / paramsState.gridSize) * canvas.height;
+                        const w = (info.width / paramsState.gridSize) * canvas.width;
+                        const h = (info.height / paramsState.gridSize) * canvas.height;
+                        rpass.setViewport(x, y, w, h, 0, 1);
+                        const bg = device.createBindGroup({
+                            layout: renderBindGroupLayout,
+                            entries: [
+                                { binding: 0, resource: info.view },
+                                { binding: 1, resource: sampler },
+                                { binding: 2, resource: { buffer: renderUniformBuffer, size: renderUniformStride } }
+                            ]
+                        });
+                        rpass.setBindGroup(0, bg);
+                        rpass.draw(6, 1, 0, 0);
+                    }
+                    rpass.end();
+
+                    // submit
+                    device.queue.submit([encoder.finish()]);
+                }
+
+                // 12) Kick off
+                redraw();
+
+
+
+                function setupSlider(id, onChange) {
+                    const slider = document.getElementById(id);
+                    const out = document.getElementById(id + 'Out');
+                    const updateOutput = () => {
+                        let v = slider.value;
+                        if (id === 'epsilon') {
+                            out.value = parseFloat(v).toExponential();
+                        } else if (['zoom', 'dx', 'dy'].includes(id)) {
+                            out.value = parseFloat(v).toFixed(2);
+                        } else {
+                            out.value = parseInt(v);
+                        }
+                    };
+                    slider.addEventListener('input', () => {
+                        updateOutput();
+                        onChange(parseFloat(slider.value));
+                    });
+                    // initialize output text
+                    updateOutput();
+                    return slider;
+                }
+                // Example UI hookups:
+                setupSlider('gridSize', v => {
+                    paramsState.gridSize = Math.floor(v);
+                    redraw();
+                });
+                setupSlider('splitCount', v => {
+                    const val = Math.floor(v);
+                    if (val > 0) {
+                        paramsState.splitCount = val;
+                        redraw();
+                    }
+                });
+                setupSlider('layers', v => {
+                    paramsState.layers = Math.floor(v);
+                    const li = document.getElementById('layerIndex');
+                    const lo = document.getElementById('layerIndexOut');
+                    li.max = (paramsState.layers - 1).toString();
+                    if (paramsState.layerIndex >= paramsState.layers) {
+                        paramsState.layerIndex = paramsState.layers - 1;
+                        li.value = paramsState.layerIndex;
+                        lo.value = paramsState.layerIndex;
+                    }
+                    redraw();
+                });
+                setupSlider('layerIndex', v => {
+                    paramsState.layerIndex = Math.floor(v);
+                    const lo = document.getElementById('layerIndexOut');
+                    lo.value = paramsState.layerIndex;
+                    redraw();
+                });
+                document.getElementById('zMin').addEventListener('input', e => {
+                    paramsState.zMin = parseFloat(e.target.value);
+                    redraw();
+                });
+                document.getElementById('dz').addEventListener('input', e => {
+                    paramsState.dz = parseFloat(e.target.value);
+                    redraw();
+                });
+                setupSlider('maxIter', v => {
+                    paramsState.maxIter = Math.floor(v);
+                    redraw();
+                });
+                setupSelect('fractalType', v => {
+                    paramsState.fractalType = parseInt(v);
+                    redraw();
+                });
+                setupSlider('zoom', v => {
+                    paramsState.zoom = v;
+                    redraw();
+                });
+                setupSlider('dx', v => {
+                    paramsState.dx = v;
+                    redraw();
+                });
+                setupSlider('dy', v => {
+                    paramsState.dy = v;
+                    redraw();
+                });
+                setupSlider('escapeR', v => {
+                    paramsState.escapeR = v;
+                    redraw();
+                });
+                setupSelect('scaleMode', v => {
+                    paramsState.scaleMode = parseInt(v);
+                    redraw();
+                });
+                setupSlider('epsilon', v => {
+                    paramsState.epsilon = v;
+                    redraw();
+                });
+                setupCheckbox('convergenceTest', v => {
+                    paramsState.convergenceTest = v;
+                    redraw();
+                });
+                setupSelect('escapeMode', v => {
+                    paramsState.escapeMode = parseInt(v);
+                    redraw();
+                });
+                setupSlider('gamma', v => {
+                    paramsState.gamma = v;
+                    redraw();
+                });
+            }
+
+            main().catch(err => {
+                console.error(err);
+            });
+        </script>
+</body>
+
+</html>
