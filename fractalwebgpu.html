@@ -553,16 +553,27 @@ fn computeFractal(typ: u32, qx: f32, qy: f32, px: f32, py: f32,
     ccx = cx * sinh(s);
     ccy = cy * cosh(s);
   } else if (scaleMode == 12u) {
-    // 12: fractal jitter (simple hash-based noise)
-    let jitterX = fract(sin(cx * s) * 43758.5453);
-    let jitterY = fract(sin(cy * s) * 97531.2468);
-    ccx = cx + jitterX * s * 0.1;
-    ccy = cy + jitterY * s * 0.1;
-  } else if (scaleMode == 13u) {
-    // 13: Power Warp
-    ccx = pow(cx, s);
-    ccy = pow(cy, s);
-  } else if (scaleMode == 14u) {
+    // 12: Centered fractal jitter (zero-mean)
+    // map fract(…) from [0,1) → [–0.5,+0.5)
+    let jx = fract(sin(cx * s) * 43758.5453) - 0.5;
+    let jy = fract(sin(cy * s) * 97531.2468) - 0.5;
+    // boost the amplitude a bit
+    ccx = cx + jx * s * 0.2;
+    ccy = cy + jy * s * 0.2;
+
+} else if (scaleMode == 13u) {
+    // 13: Signed power warp (axis‐symmetric)
+    // preserves negative sides and clamps magnitude
+    ccx = sign(cx) * pow(abs(cx), s);
+    ccy = sign(cy) * pow(abs(cy), s);
+
+    // -- or, if you prefer a fully radial version: --
+    // let r   = length(vec2<f32>(cx,cy));
+    // let θ   = atan2(cy, cx);
+    // let rp  = pow(r, s);
+    // ccx = rp * cos(θ);
+    // ccy = rp * sin(θ);
+} else if (scaleMode == 14u) {
     // 14: Smoothstep Fade
     let t = smoothstep(0.0, 1.0, s);
     ccx = cx * t;
