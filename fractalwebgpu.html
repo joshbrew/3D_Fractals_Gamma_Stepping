@@ -229,6 +229,10 @@
                         <option value="63">Inverse Sine Ring Nova</option>  
                         <option value="64">Inverse-Mirror Nova</option>
                         <option value="65">Inverse-Vibrant Nova</option>
+                        <option value="68">Inverse-Hybrid-FlScatter Nova</option>
+                          <option value="66">Hybrid-FlScatter Nova 2</option>
+                          <option value="67">Inverse-Hybrid-FlScatter Nova 2</option>
+                          
                       </select>
                         <output id="fractalTypeOut">0</output>
                     </label>
@@ -1635,6 +1639,137 @@ case 65u: {
     nx = vx * invR2;
     ny = -vy * invR2;
     npx = qx; npy = qy;
+    break;
+}
+case 66u: {
+    // --- Hybrid-FlScatter seed & core (same as before) ---
+    var zx0 = qx; var zy0 = qy;
+    if (iter == 0u) { zx0 = cx; zy0 = cy; }
+
+    // Flower
+    let zx2 = zx0*zx0 - zy0*zy0;
+    let zy2 = 2.0*zx0*zy0;
+    let zx3 = zx2*zx0 - zy2*zy0;
+    let zy3 = zx2*zy0 + zy2*zx0;
+    let zx4 = zx3*zx0 - zy3*zy0;
+    let zy4 = zx3*zy0 + zy3*zx0;
+    let numxF = zx4 - 1.0;
+    let numyF = zy4;
+    let denxF = 4.0*zx3;
+    let denyF = 4.0*zy3;
+    let invD  = 1.0 / (denxF*denxF + denyF*denyF + 1e-9);
+    let fxF = zx0 - ((numxF*denxF + numyF*denyF)*invD) + ccx;
+    let fyF = zy0 - ((numyF*denxF - numxF*denyF)*invD) + ccy;
+
+    // Scatter
+    let invR2 = 1.0 / (fxF*fxF + fyF*fyF + 1e-9);
+    let sx    = fxF * invR2;
+    let sy    = -fyF * invR2;
+
+    // Blend
+    let blend = 0.5 + 0.5 * sin(gamma * PI + f32(iter) * 0.05);
+    let mx = mix(fxF, sx, blend);
+    let my = mix(fyF, sy, blend);
+
+    // --- Now do a 2π‐periodic,  π‐repeating warp for 4‐fold symmetry ---
+    let θ0   = atan2(my, mx);                       // (–π, π]
+    let r    = length(vec2<f32>(mx, my));
+    let beta = 0.2 + 0.1 * sin(f32(iter) * 0.15);
+    // cos(2θ0) has period π and is symmetric across both axes
+    let warp = exp(beta * cos(2.0 * θ0));
+    nx = r * warp * cos(θ0);
+    ny = r * warp * sin(θ0);
+
+    npx = qx;  
+    npy = qy;
+    break;
+}
+// 67: Inverse-Symmetric-FlScatter Nova (66 + 1/z)
+case 67u: {
+    // same as 66 up through nx,ny...
+    var zx0 = qx; var zy0 = qy;
+    if (iter == 0u) { zx0 = cx; zy0 = cy; }
+    // Flower
+    let zx2 = zx0*zx0 - zy0*zy0;
+    let zy2 = 2.0*zx0*zy0;
+    let zx3 = zx2*zx0 - zy2*zy0;
+    let zy3 = zx2*zy0 + zy2*zx0;
+    let zx4 = zx3*zx0 - zy3*zy0;
+    let zy4 = zx3*zy0 + zy3*zx0;
+    let numxF = zx4 - 1.0;
+    let numyF = zy4;
+    let denxF = 4.0*zx3;
+    let denyF = 4.0*zy3;
+    let invD  = 1.0 / (denxF*denxF + denyF*denyF + 1e-9);
+    let fxF = zx0 - ((numxF*denxF + numyF*denyF)*invD) + ccx;
+    let fyF = zy0 - ((numyF*denxF - numxF*denyF)*invD) + ccy;
+    // Scatter
+    let invR2 = 1.0 / (fxF*fxF + fyF*fyF + 1e-9);
+    let sx    = fxF * invR2;
+    let sy    = -fyF * invR2;
+    // Blend
+    let blend = 0.5 + 0.5 * sin(gamma * PI + f32(iter) * 0.05);
+    let mx = mix(fxF, sx, blend);
+    let my = mix(fyF, sy, blend);
+    // Symmetric warp
+    let θ0   = atan2(my, mx);
+    let r    = length(vec2<f32>(mx, my));
+    let beta = 0.2 + 0.1 * sin(f32(iter) * 0.15);
+    let warp = exp(beta * cos(2.0 * θ0));
+    let x = r * warp * cos(θ0);
+    let y = r * warp * sin(θ0);
+    // — then 1/z —
+    let denom = x*x + y*y + 1e-9;
+    nx =  x / denom;
+    ny = -y / denom;
+
+    npx = qx;
+    npy = qy;
+    break;
+}
+// 68: Inverse–Hybrid-FlScatter Nova (1/z of case 49)
+case 68u: {
+    // seed exactly like Hybrid-FlScatter (case 49)
+    var zx0 = qx;
+    var zy0 = qy;
+    if (iter == 0u) {
+        zx0 = cx;
+        zy0 = cy;
+    }
+
+    // --- Flower part ---
+    let zx2   = zx0*zx0 - zy0*zy0;
+    let zy2   = 2.0*zx0*zy0;
+    let zx3   = zx2*zx0 - zy2*zy0;
+    let zy3   = zx2*zy0 + zy2*zx0;
+    let zx4   = zx3*zx0 - zy3*zy0;
+    let zy4   = zx3*zy0 + zy3*zx0;
+    let numxF = zx4 - 1.0;
+    let numyF = zy4;
+    let denxF = 4.0*zx3;
+    let denyF = 4.0*zy3;
+    let invDenF = 1.0 / (denxF*denxF + denyF*denyF + 1e-9);
+    let fxF = zx0 - ((numxF*denxF + numyF*denyF) * invDenF) + ccx;
+    let fyF = zy0 - ((numyF*denxF - numxF*denyF) * invDenF) + ccy;
+
+    // --- Scatter part ---
+    let invR2 = 1.0 / (fxF*fxF + fyF*fyF + 1e-9);
+    let sx    = fxF * invR2;
+    let sy    = -fyF * invR2;
+
+    // --- Blend Flower & Scatter ---
+    let blend = 0.5 + 0.5 * sin(gamma * 3.14159265 + f32(iter) * 0.05);
+    var mx = mix(fxF, sx, blend);
+    var my = mix(fyF, sy, blend);
+
+    // --- Plain 1/z inversion ---
+    let denom = mx*mx + my*my + 1e-9;
+    nx =  mx / denom;
+    ny = -my / denom;
+
+    // carry previous z for next iteration
+    npx = qx;
+    npy = qy;
     break;
 }
     default: { // Mandelbrot
