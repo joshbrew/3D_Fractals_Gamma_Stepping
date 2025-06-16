@@ -31,3 +31,17 @@ See build/dist for a bundled (offline friendly) version
 How it works:
 
 ![image](https://github.com/user-attachments/assets/7206591d-5af3-4e7d-aa83-a03549fcfd90)
+
+### WebGPU test (WIP!)
+![7image](https://github.com/user-attachments/assets/b538db7b-be28-41d4-8bbe-c5554f4c59ea)
+![6image](https://github.com/user-attachments/assets/7aa387cc-32f4-4b64-8cad-3be50d044e5b)
+![1image](https://github.com/user-attachments/assets/dd24fb37-519e-497f-9fe3-b7db7003ac3a)
+![image](https://github.com/user-attachments/assets/f30128d2-582a-409e-b45d-9b0879cf7d6f)
+![15image](https://github.com/user-attachments/assets/323ce4e2-cc7f-4b6e-a0ca-943e370998dd)
+![13image](https://github.com/user-attachments/assets/8d6c8548-3306-4cc3-acb9-1f8b60521358)
+![12image](https://github.com/user-attachments/assets/cef484d9-27e3-45a5-8927-0b6fd172f147)
+![11image](https://github.com/user-attachments/assets/b13e4ff8-ebb1-4597-947a-cedbb3434cbd)
+![10image](https://github.com/user-attachments/assets/0444fec4-e73f-4c04-973f-c9f806494179)
+![9image](https://github.com/user-attachments/assets/28148829-e2bb-4c3d-9e87-183babc51083)
+
+
